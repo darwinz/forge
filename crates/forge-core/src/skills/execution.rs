@@ -764,6 +764,7 @@ pub fn plan_transform_execution(
             &existing_content,
             transform.value.as_ref(),
             transform.lines.as_deref(),
+            transform.skip_duplicates,
             &file_str,
         )?;
 
@@ -799,6 +800,7 @@ fn apply_transform(
     existing: &str,
     value: Option<&toml::Value>,
     lines: Option<&[String]>,
+    skip_duplicates: bool,
     file_name: &str,
 ) -> ForgeResult<String> {
     match operation {
@@ -818,7 +820,7 @@ fn apply_transform(
             let lines = lines.ok_or_else(|| {
                 ForgeError::Other(format!("{file_name}: line_append requires a 'lines' field"))
             })?;
-            Ok(line_append(existing, lines))
+            Ok(line_append(existing, lines, skip_duplicates))
         }
         "line_prepend" => {
             let lines = lines.ok_or_else(|| {
@@ -826,7 +828,7 @@ fn apply_transform(
                     "{file_name}: line_prepend requires a 'lines' field"
                 ))
             })?;
-            Ok(line_prepend(existing, lines))
+            Ok(line_prepend(existing, lines, skip_duplicates))
         }
         other => Err(ForgeError::Other(format!(
             "Unknown transform operation: '{other}'. \
@@ -921,12 +923,23 @@ fn toml_deep_merge(base: &mut toml::Table, patch: &toml::Table) {
 }
 
 /// Append lines to existing content, ensuring a trailing newline before appending.
-fn line_append(existing: &str, lines: &[String]) -> String {
+///
+/// When `skip_duplicates` is true, lines that already appear in the file
+/// (exact match, trimmed) are silently skipped.
+fn line_append(existing: &str, lines: &[String], skip_duplicates: bool) -> String {
     let mut result = existing.to_string();
     if !result.is_empty() && !result.ends_with('\n') {
         result.push('\n');
     }
+    let existing_lines: std::collections::HashSet<&str> = if skip_duplicates {
+        existing.lines().map(|l| l.trim()).collect()
+    } else {
+        std::collections::HashSet::new()
+    };
     for line in lines {
+        if skip_duplicates && existing_lines.contains(line.trim()) {
+            continue;
+        }
         result.push_str(line);
         result.push('\n');
     }
@@ -934,9 +947,20 @@ fn line_append(existing: &str, lines: &[String]) -> String {
 }
 
 /// Prepend lines to existing content.
-fn line_prepend(existing: &str, lines: &[String]) -> String {
+///
+/// When `skip_duplicates` is true, lines that already appear in the file
+/// (exact match, trimmed) are silently skipped.
+fn line_prepend(existing: &str, lines: &[String], skip_duplicates: bool) -> String {
+    let existing_lines: std::collections::HashSet<&str> = if skip_duplicates {
+        existing.lines().map(|l| l.trim()).collect()
+    } else {
+        std::collections::HashSet::new()
+    };
     let mut result = String::new();
     for line in lines {
+        if skip_duplicates && existing_lines.contains(line.trim()) {
+            continue;
+        }
         result.push_str(line);
         result.push('\n');
     }
@@ -1206,7 +1230,7 @@ mod tests {
     fn test_line_append() {
         let existing = "line1\nline2\n";
         let lines = vec!["line3".into(), "line4".into()];
-        let result = line_append(existing, &lines);
+        let result = line_append(existing, &lines, false);
         assert_eq!(result, "line1\nline2\nline3\nline4\n");
     }
 
@@ -1214,7 +1238,7 @@ mod tests {
     fn test_line_append_no_trailing_newline() {
         let existing = "line1\nline2";
         let lines = vec!["line3".into()];
-        let result = line_append(existing, &lines);
+        let result = line_append(existing, &lines, false);
         assert_eq!(result, "line1\nline2\nline3\n");
     }
 
@@ -1222,15 +1246,33 @@ mod tests {
     fn test_line_append_empty() {
         let existing = "";
         let lines = vec!["first".into()];
-        let result = line_append(existing, &lines);
+        let result = line_append(existing, &lines, false);
         assert_eq!(result, "first\n");
+    }
+
+    #[test]
+    fn test_line_append_allows_duplicates_by_default() {
+        let existing = "line1\nline2\n";
+        let lines = vec!["line1".into(), "line3".into()];
+        let result = line_append(existing, &lines, false);
+        // line1 appears twice — duplicates allowed when skip_duplicates=false
+        assert_eq!(result, "line1\nline2\nline1\nline3\n");
+    }
+
+    #[test]
+    fn test_line_append_skip_duplicates() {
+        let existing = "line1\nline2\n";
+        let lines = vec!["line1".into(), "line3".into()];
+        let result = line_append(existing, &lines, true);
+        // line1 already exists — skipped; only line3 appended
+        assert_eq!(result, "line1\nline2\nline3\n");
     }
 
     #[test]
     fn test_line_prepend() {
         let existing = "line2\nline3\n";
         let lines = vec!["line0".into(), "line1".into()];
-        let result = line_prepend(existing, &lines);
+        let result = line_prepend(existing, &lines, false);
         assert_eq!(result, "line0\nline1\nline2\nline3\n");
     }
 
@@ -1238,13 +1280,22 @@ mod tests {
     fn test_line_prepend_empty_existing() {
         let existing = "";
         let lines = vec!["header".into()];
-        let result = line_prepend(existing, &lines);
+        let result = line_prepend(existing, &lines, false);
         assert_eq!(result, "header\n");
     }
 
     #[test]
+    fn test_line_prepend_skip_duplicates() {
+        let existing = "line2\nline3\n";
+        let lines = vec!["line2".into(), "line0".into()];
+        let result = line_prepend(existing, &lines, true);
+        // line2 already exists — skipped; only line0 prepended
+        assert_eq!(result, "line0\nline2\nline3\n");
+    }
+
+    #[test]
     fn test_apply_transform_unknown_op() {
-        let result = apply_transform("unknown_op", "", None, None, "test.txt");
+        let result = apply_transform("unknown_op", "", None, None, false, "test.txt");
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -1254,15 +1305,44 @@ mod tests {
 
     #[test]
     fn test_apply_transform_missing_value() {
-        let result = apply_transform("json_merge", "{}", None, None, "test.json");
+        let result = apply_transform("json_merge", "{}", None, None, false, "test.json");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("requires"));
     }
 
     #[test]
     fn test_apply_transform_missing_lines() {
-        let result = apply_transform("line_append", "content", None, None, "test.txt");
+        let result = apply_transform("line_append", "content", None, None, false, "test.txt");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("requires"));
+    }
+
+    #[test]
+    fn test_json_merge_replaces_scalar() {
+        let existing = r#"{"version": "1.0.0"}"#;
+        let merge: toml::Value = toml::from_str("version = \"2.0.0\"").unwrap();
+        let result = json_merge(existing, &merge).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["version"], "2.0.0");
+    }
+
+    #[test]
+    fn test_toml_merge_replaces_scalar() {
+        let existing = "[package]\nversion = \"0.1.0\"\n";
+        let merge: toml::Value = toml::from_str("[package]\nversion = \"0.2.0\"").unwrap();
+        let result = toml_merge(existing, &merge).unwrap();
+        assert!(result.contains("version = \"0.2.0\""));
+        assert!(!result.contains("0.1.0"));
+    }
+
+    #[test]
+    fn test_json_merge_preserves_unrelated_keys() {
+        let existing = r#"{"name": "app", "author": "me"}"#;
+        let merge: toml::Value = toml::from_str("version = \"1.0\"").unwrap();
+        let result = json_merge(existing, &merge).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["name"], "app");
+        assert_eq!(parsed["author"], "me");
+        assert_eq!(parsed["version"], "1.0");
     }
 }

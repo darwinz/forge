@@ -102,6 +102,9 @@ pub struct SkillTransform {
     /// Lines to append/prepend (for line_append/line_prepend)
     #[serde(default)]
     pub lines: Option<Vec<String>>,
+    /// Skip lines that already exist in the file (for line_append/line_prepend)
+    #[serde(default)]
+    pub skip_duplicates: bool,
 }
 
 /// A discovered skill with its filesystem location
