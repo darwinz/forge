@@ -1,4 +1,12 @@
-use clap::{Parser, Subcommand};
+use clap::{builder::styling, Parser, Subcommand};
+
+fn styles() -> styling::Styles {
+    styling::Styles::styled()
+        .header(styling::AnsiColor::Cyan.on_default().bold())
+        .usage(styling::AnsiColor::Cyan.on_default().bold())
+        .literal(styling::AnsiColor::Green.on_default())
+        .placeholder(styling::AnsiColor::Yellow.on_default())
+}
 
 #[derive(Parser)]
 #[command(
@@ -6,6 +14,9 @@ use clap::{Parser, Subcommand};
     about = "Developer toolkit — bootstrap, manage, and extend your dev environment",
     version,
     long_about = None,
+    styles = styles(),
+    after_help = "Run `forge <command> --help` for details on a specific command.\n\
+                  Run `forge notes` to browse built-in cheatsheets (38 topics).",
 )]
 pub struct Cli {
     /// Enable dry-run mode (no mutations, preview only)
@@ -40,7 +51,10 @@ pub enum Commands {
     },
 
     /// File operations and search
-    #[command(arg_required_else_help = true)]
+    #[command(
+        arg_required_else_help = true,
+        after_help = "Read-only: find, search, spotlight\nMutation:  extract, trash, cleanup-ds (requires confirmation)"
+    )]
     File {
         #[command(subcommand)]
         command: FileCommands,

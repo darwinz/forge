@@ -120,11 +120,7 @@ fn cmd_notes(printer: &Printer, command: Option<NotesCommands>) -> Result<()> {
         Some(NotesCommands::Topic(args)) => {
             if let Some(topic) = args.first() {
                 let content = notes::get_notes(topic)?;
-                printer.newline();
-                printer.heading(&format!("Notes: {topic}"));
-                printer.newline();
-                printer.print(content);
-                printer.newline();
+                printer.notes_block(topic, content);
             } else {
                 print_notes_list(printer);
             }
@@ -977,14 +973,12 @@ fn cmd_docker(
 }
 
 /// Prompt user for confirmation before a destructive operation.
-fn confirm_destructive(_printer: &Printer, message: &str) -> Result<bool> {
-    eprint!("{message} [y/N] ");
-    let mut input = String::new();
-    std::io::stdin()
-        .read_line(&mut input)
-        .context("failed to read stdin")?;
-    let answer = input.trim().to_lowercase();
-    Ok(answer == "y" || answer == "yes")
+///
+/// Uses dialoguer when interactive, returns false (abort) when piped.
+fn confirm_destructive(printer: &Printer, message: &str) -> Result<bool> {
+    printer
+        .confirm(message)
+        .context("confirmation prompt failed")
 }
 
 // --- AWS ---
@@ -1046,30 +1040,17 @@ fn cmd_aws(printer: &Printer, runner: &dyn CommandRunner, command: AwsCommands) 
             let target = if instances.len() == 1 {
                 &instances[0]
             } else {
-                printer.newline();
-                printer.heading("Multiple instances found:");
-                printer.newline();
-                for (i, inst) in instances.iter().enumerate() {
-                    let ip = inst.connect_ip().unwrap_or("-");
-                    println!(
-                        "  [{}] {} — {} ({})",
-                        i + 1,
-                        inst.name,
-                        ip,
-                        inst.instance_id
-                    );
-                }
-                printer.newline();
-                printer.print("Select instance [1]: ");
-                let mut input = String::new();
-                std::io::stdin()
-                    .read_line(&mut input)
-                    .context("failed to read stdin")?;
-                let choice: usize = input.trim().parse::<usize>().unwrap_or(1).saturating_sub(1);
-                if choice >= instances.len() {
-                    printer.error("Invalid selection.");
-                    return Ok(());
-                }
+                let items: Vec<String> = instances
+                    .iter()
+                    .map(|inst| {
+                        let ip = inst.connect_ip().unwrap_or("-");
+                        format!("{} — {} ({})", inst.name, ip, inst.instance_id)
+                    })
+                    .collect();
+
+                let choice = printer
+                    .select("Select instance", &items)
+                    .context("instance selection failed")?;
                 &instances[choice]
             };
 

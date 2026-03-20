@@ -33,8 +33,8 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Platform notes (vercel, supabase, netlify, render, appwrite) | Done |
 | Platform diagnostics (`forge platform doctor/status`) | Done |
 | `forge vercel` command group (doctor, env-diff, deploy) | Done |
+| Terminal UX polish (TTY, dialoguer, notes rendering, clap styles) | Done |
 | Skill execution / sandbox | Planned |
-| Terminal UX polish (TTY, dialoguer, spinners, help) | Planned |
 | `forge supabase` command group (doctor, migration-status, reset) | Done |
 | Shell profile management | Planned |
 | Self-update | Planned |
