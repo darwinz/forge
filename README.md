@@ -35,8 +35,7 @@ forge is in active development. The read-only foundation is solid and usable tod
 | `forge vercel` command group (doctor, env-diff, status, deploy) | Done |
 | Terminal UX polish (TTY, dialoguer, notes rendering, clap styles) | Done |
 | Skill execution design (trust, permissions, sandboxing model) | Done (design) |
-| Skill execution v1 — template skills (run, trust, revoke, audit) | Done |
-| Skill execution v2 — transforms, trust persistence, audit | Planned |
+| Skill execution v1 — templates + transforms (run, trust, revoke, audit) | Done |
 | Skill execution v3 — script/binary execution (requires sandboxing) | Planned |
 | `forge supabase` command group (doctor, migration-status, services, reset) | Done |
 | `forge netlify` command group (doctor, env-diff) | Done |
@@ -398,7 +397,7 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (255 tests)
+cargo test                     # Run all tests (269 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 

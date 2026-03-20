@@ -1,7 +1,7 @@
-//! Skill execution engine — template rendering with safety controls.
+//! Skill execution engine — template rendering and declarative transforms.
 //!
-//! V1 supports only `execution.type = "template"`. Script, binary, wasm, and
-//! command execution types are rejected with a clear error.
+//! V1 supports `execution.type = "template"` and `execution.type = "transform"`.
+//! Script, binary, wasm, and command execution types are rejected with a clear error.
 //!
 //! Safety controls:
 //! - Path validation with symlink escape detection
@@ -716,6 +716,235 @@ pub fn execute_plan(plan: &ExecutionPlan) -> ExecutionResult {
 }
 
 // ---------------------------------------------------------------------------
+// Transform execution
+// ---------------------------------------------------------------------------
+
+/// Plan the file writes for a transform skill.
+pub fn plan_transform_execution(
+    skill: &DiscoveredSkill,
+    inputs: &HashMap<String, String>,
+    cwd: &Path,
+) -> ForgeResult<ExecutionPlan> {
+    let exec = skill
+        .manifest
+        .skill
+        .execution
+        .as_ref()
+        .ok_or_else(|| ForgeError::Other("Skill has no [execution] section.".into()))?;
+
+    if exec.exec_type != "transform" {
+        return Err(ForgeError::Other(format!(
+            "Expected execution type 'transform', got '{}'",
+            exec.exec_type
+        )));
+    }
+
+    let max_file_size = skill
+        .manifest
+        .skill
+        .permissions
+        .as_ref()
+        .and_then(|p| p.max_file_size_bytes)
+        .unwrap_or(1_048_576);
+
+    let mut writes = Vec::new();
+
+    for transform in &exec.transforms {
+        let file_str = render_template(&transform.file, inputs);
+        let file_path = validate_output_path(cwd, &file_str)?;
+
+        let existing_content =
+            std::fs::read_to_string(&file_path).map_err(|e| ForgeError::FileRead {
+                path: file_path.clone(),
+                source: e,
+            })?;
+
+        let new_content = apply_transform(
+            &transform.operation,
+            &existing_content,
+            transform.value.as_ref(),
+            transform.lines.as_deref(),
+            &file_str,
+        )?;
+
+        if new_content.len() as u64 > max_file_size {
+            return Err(ForgeError::Other(format!(
+                "Transform output for {} exceeds max_file_size_bytes ({} > {})",
+                file_str,
+                new_content.len(),
+                max_file_size
+            )));
+        }
+
+        writes.push(PlannedWrite {
+            destination: file_path,
+            content: new_content,
+            is_overwrite: true,
+            existing_content: Some(existing_content),
+            overwrite_allowed: true,
+        });
+    }
+
+    Ok(ExecutionPlan {
+        skill_name: skill.manifest.skill.name.clone(),
+        skill_version: skill.manifest.skill.version.clone(),
+        writes,
+        inputs_redacted: redact_inputs(inputs),
+    })
+}
+
+/// Apply a single transform operation.
+fn apply_transform(
+    operation: &str,
+    existing: &str,
+    value: Option<&toml::Value>,
+    lines: Option<&[String]>,
+    file_name: &str,
+) -> ForgeResult<String> {
+    match operation {
+        "json_merge" => {
+            let merge_value = value.ok_or_else(|| {
+                ForgeError::Other(format!("{file_name}: json_merge requires a 'value' field"))
+            })?;
+            json_merge(existing, merge_value)
+        }
+        "toml_merge" => {
+            let merge_value = value.ok_or_else(|| {
+                ForgeError::Other(format!("{file_name}: toml_merge requires a 'value' field"))
+            })?;
+            toml_merge(existing, merge_value)
+        }
+        "line_append" => {
+            let lines = lines.ok_or_else(|| {
+                ForgeError::Other(format!("{file_name}: line_append requires a 'lines' field"))
+            })?;
+            Ok(line_append(existing, lines))
+        }
+        "line_prepend" => {
+            let lines = lines.ok_or_else(|| {
+                ForgeError::Other(format!(
+                    "{file_name}: line_prepend requires a 'lines' field"
+                ))
+            })?;
+            Ok(line_prepend(existing, lines))
+        }
+        other => Err(ForgeError::Other(format!(
+            "Unknown transform operation: '{other}'. \
+             Supported: json_merge, toml_merge, line_append, line_prepend"
+        ))),
+    }
+}
+
+/// Deep merge a TOML value into a JSON string.
+///
+/// The merge value comes from TOML (skill manifest) and is converted to JSON
+/// for merging. Object keys are merged recursively; non-object values are replaced.
+fn json_merge(existing_json: &str, merge_value: &toml::Value) -> ForgeResult<String> {
+    let mut existing: serde_json::Value = serde_json::from_str(existing_json)
+        .map_err(|e| ForgeError::Other(format!("Failed to parse target as JSON: {e}")))?;
+
+    let merge_json = toml_value_to_json(merge_value);
+
+    json_deep_merge(&mut existing, &merge_json);
+
+    serde_json::to_string_pretty(&existing)
+        .map_err(|e| ForgeError::Other(format!("Failed to serialize JSON: {e}")))
+}
+
+fn json_deep_merge(base: &mut serde_json::Value, patch: &serde_json::Value) {
+    match (base, patch) {
+        (serde_json::Value::Object(base_map), serde_json::Value::Object(patch_map)) => {
+            for (key, patch_val) in patch_map {
+                let entry = base_map
+                    .entry(key.clone())
+                    .or_insert(serde_json::Value::Null);
+                json_deep_merge(entry, patch_val);
+            }
+        }
+        (base, patch) => {
+            *base = patch.clone();
+        }
+    }
+}
+
+fn toml_value_to_json(v: &toml::Value) -> serde_json::Value {
+    match v {
+        toml::Value::String(s) => serde_json::Value::String(s.clone()),
+        toml::Value::Integer(i) => serde_json::json!(*i),
+        toml::Value::Float(f) => serde_json::json!(*f),
+        toml::Value::Boolean(b) => serde_json::Value::Bool(*b),
+        toml::Value::Array(arr) => {
+            serde_json::Value::Array(arr.iter().map(toml_value_to_json).collect())
+        }
+        toml::Value::Table(table) => {
+            let map: serde_json::Map<String, serde_json::Value> = table
+                .iter()
+                .map(|(k, v)| (k.clone(), toml_value_to_json(v)))
+                .collect();
+            serde_json::Value::Object(map)
+        }
+        toml::Value::Datetime(dt) => serde_json::Value::String(dt.to_string()),
+    }
+}
+
+/// Deep merge a TOML value into an existing TOML string.
+///
+/// Table keys are merged recursively; non-table values are replaced.
+/// Preserves existing keys not present in the merge value.
+fn toml_merge(existing_toml: &str, merge_value: &toml::Value) -> ForgeResult<String> {
+    let mut existing: toml::Table = toml::from_str(existing_toml)
+        .map_err(|e| ForgeError::Other(format!("Failed to parse target as TOML: {e}")))?;
+
+    if let toml::Value::Table(merge_table) = merge_value {
+        toml_deep_merge(&mut existing, merge_table);
+    } else {
+        return Err(ForgeError::Other(
+            "toml_merge value must be a table".to_string(),
+        ));
+    }
+
+    toml::to_string_pretty(&existing)
+        .map_err(|e| ForgeError::Other(format!("Failed to serialize TOML: {e}")))
+}
+
+fn toml_deep_merge(base: &mut toml::Table, patch: &toml::Table) {
+    for (key, patch_val) in patch {
+        match (base.get_mut(key), patch_val) {
+            (Some(toml::Value::Table(base_table)), toml::Value::Table(patch_table)) => {
+                toml_deep_merge(base_table, patch_table);
+            }
+            _ => {
+                base.insert(key.clone(), patch_val.clone());
+            }
+        }
+    }
+}
+
+/// Append lines to existing content, ensuring a trailing newline before appending.
+fn line_append(existing: &str, lines: &[String]) -> String {
+    let mut result = existing.to_string();
+    if !result.is_empty() && !result.ends_with('\n') {
+        result.push('\n');
+    }
+    for line in lines {
+        result.push_str(line);
+        result.push('\n');
+    }
+    result
+}
+
+/// Prepend lines to existing content.
+fn line_prepend(existing: &str, lines: &[String]) -> String {
+    let mut result = String::new();
+    for line in lines {
+        result.push_str(line);
+        result.push('\n');
+    }
+    result.push_str(existing);
+    result
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -909,5 +1138,131 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "content");
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    // --- Transform tests ---
+
+    #[test]
+    fn test_json_merge_basic() {
+        let existing = r#"{"name": "my-app", "version": "1.0.0"}"#;
+        let merge: toml::Value = toml::from_str("[dependencies]\nzod = \"^3.22\"").unwrap();
+        let result = json_merge(existing, &merge).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["name"], "my-app");
+        assert_eq!(parsed["version"], "1.0.0");
+        assert_eq!(parsed["dependencies"]["zod"], "^3.22");
+    }
+
+    #[test]
+    fn test_json_merge_deep() {
+        let existing = r#"{"dependencies": {"react": "^18.0"}, "name": "app"}"#;
+        let merge: toml::Value = toml::from_str("[dependencies]\nzod = \"^3.22\"").unwrap();
+        let result = json_merge(existing, &merge).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        // Existing key preserved
+        assert_eq!(parsed["dependencies"]["react"], "^18.0");
+        // New key merged
+        assert_eq!(parsed["dependencies"]["zod"], "^3.22");
+        assert_eq!(parsed["name"], "app");
+    }
+
+    #[test]
+    fn test_json_merge_invalid_json() {
+        let existing = "not json at all";
+        let merge: toml::Value = toml::from_str("key = \"val\"").unwrap();
+        let result = json_merge(existing, &merge);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("JSON"));
+    }
+
+    #[test]
+    fn test_toml_merge_basic() {
+        let existing = "[package]\nname = \"my-app\"\nversion = \"0.1.0\"\n";
+        let merge: toml::Value = toml::from_str("[dependencies]\nserde = \"1.0\"").unwrap();
+        let result = toml_merge(existing, &merge).unwrap();
+        assert!(result.contains("name = \"my-app\""));
+        assert!(result.contains("serde = \"1.0\""));
+    }
+
+    #[test]
+    fn test_toml_merge_deep() {
+        let existing = "[package]\nname = \"app\"\n\n[dependencies]\ntoml = \"0.8\"\n";
+        let merge: toml::Value = toml::from_str("[dependencies]\nserde = \"1.0\"").unwrap();
+        let result = toml_merge(existing, &merge).unwrap();
+        assert!(result.contains("toml = \"0.8\""));
+        assert!(result.contains("serde = \"1.0\""));
+    }
+
+    #[test]
+    fn test_toml_merge_invalid_toml() {
+        let existing = "{{not valid toml}}";
+        let merge: toml::Value = toml::from_str("key = \"val\"").unwrap();
+        let result = toml_merge(existing, &merge);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("TOML"));
+    }
+
+    #[test]
+    fn test_line_append() {
+        let existing = "line1\nline2\n";
+        let lines = vec!["line3".into(), "line4".into()];
+        let result = line_append(existing, &lines);
+        assert_eq!(result, "line1\nline2\nline3\nline4\n");
+    }
+
+    #[test]
+    fn test_line_append_no_trailing_newline() {
+        let existing = "line1\nline2";
+        let lines = vec!["line3".into()];
+        let result = line_append(existing, &lines);
+        assert_eq!(result, "line1\nline2\nline3\n");
+    }
+
+    #[test]
+    fn test_line_append_empty() {
+        let existing = "";
+        let lines = vec!["first".into()];
+        let result = line_append(existing, &lines);
+        assert_eq!(result, "first\n");
+    }
+
+    #[test]
+    fn test_line_prepend() {
+        let existing = "line2\nline3\n";
+        let lines = vec!["line0".into(), "line1".into()];
+        let result = line_prepend(existing, &lines);
+        assert_eq!(result, "line0\nline1\nline2\nline3\n");
+    }
+
+    #[test]
+    fn test_line_prepend_empty_existing() {
+        let existing = "";
+        let lines = vec!["header".into()];
+        let result = line_prepend(existing, &lines);
+        assert_eq!(result, "header\n");
+    }
+
+    #[test]
+    fn test_apply_transform_unknown_op() {
+        let result = apply_transform("unknown_op", "", None, None, "test.txt");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unknown transform"));
+    }
+
+    #[test]
+    fn test_apply_transform_missing_value() {
+        let result = apply_transform("json_merge", "{}", None, None, "test.json");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("requires"));
+    }
+
+    #[test]
+    fn test_apply_transform_missing_lines() {
+        let result = apply_transform("line_append", "content", None, None, "test.txt");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("requires"));
     }
 }

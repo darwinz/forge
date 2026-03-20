@@ -907,7 +907,18 @@ fn cmd_skill(
 
             // Plan execution
             let cwd = std::env::current_dir().context("could not determine working directory")?;
-            let plan = execution::plan_template_execution(skill, &inputs, &cwd)?;
+            let exec_type = skill
+                .manifest
+                .skill
+                .execution
+                .as_ref()
+                .map(|e| e.exec_type.as_str())
+                .unwrap_or("template");
+            let plan = match exec_type {
+                "template" => execution::plan_template_execution(skill, &inputs, &cwd)?,
+                "transform" => execution::plan_transform_execution(skill, &inputs, &cwd)?,
+                _ => unreachable!("check_execution_type should have caught this"),
+            };
 
             // Show preview
             printer.newline();

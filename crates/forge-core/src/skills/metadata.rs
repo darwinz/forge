@@ -70,6 +70,8 @@ pub struct SkillExecution {
     pub interpreter: Option<String>,
     #[serde(default)]
     pub outputs: Vec<SkillOutput>,
+    #[serde(default)]
+    pub transforms: Vec<SkillTransform>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -85,6 +87,21 @@ pub struct SkillOutput {
 
 fn default_true() -> bool {
     true
+}
+
+/// A declarative file transform operation.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SkillTransform {
+    /// Target file path (supports `{{ input }}` interpolation)
+    pub file: String,
+    /// Transform operation type
+    pub operation: String,
+    /// Value to merge/append/prepend (TOML inline value)
+    #[serde(default)]
+    pub value: Option<toml::Value>,
+    /// Lines to append/prepend (for line_append/line_prepend)
+    #[serde(default)]
+    pub lines: Option<Vec<String>>,
 }
 
 /// A discovered skill with its filesystem location
