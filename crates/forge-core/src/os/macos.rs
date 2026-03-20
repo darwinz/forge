@@ -1,6 +1,6 @@
-use crate::exec::CommandRunner;
-use crate::error::ForgeResult;
 use super::OsPlatform;
+use crate::error::ForgeResult;
+use crate::exec::CommandRunner;
 
 pub struct MacOs;
 

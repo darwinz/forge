@@ -1,8 +1,8 @@
-pub mod macos;
 pub mod linux;
+pub mod macos;
 
-use crate::exec::CommandRunner;
 use crate::error::ForgeResult;
+use crate::exec::CommandRunner;
 
 /// Platform abstraction for OS-specific operations.
 ///

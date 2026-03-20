@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::exec::CommandRunner;
 use crate::error::{ForgeError, ForgeResult};
+use crate::exec::CommandRunner;
 
 /// A parsed git alias from the config file
 #[derive(Debug, Clone)]
@@ -34,10 +34,7 @@ pub fn load_aliases(path: &Path) -> ForgeResult<Vec<GitAlias>> {
         .get("aliases")
         .and_then(|v| v.as_table())
         .ok_or_else(|| {
-            ForgeError::Config(format!(
-                "missing [aliases] table in {}",
-                path.display()
-            ))
+            ForgeError::Config(format!("missing [aliases] table in {}", path.display()))
         })?;
 
     let mut aliases = Vec::new();
@@ -74,16 +71,15 @@ pub fn format_aliases(aliases: &[GitAlias]) -> String {
     lines.join("\n")
 }
 
+/// Result of diffing configured aliases against current git config.
+pub struct AliasDiff {
+    pub to_add: Vec<GitAlias>,
+    pub to_change: Vec<(GitAlias, String)>,
+    pub unchanged: Vec<GitAlias>,
+}
+
 /// Compute what changes setup-aliases would make.
-///
-/// Returns (to_add, to_change, unchanged) where:
-/// - to_add: aliases not currently set in git config
-/// - to_change: aliases that differ from the config file
-/// - unchanged: aliases already matching
-pub fn diff_aliases(
-    runner: &dyn CommandRunner,
-    aliases: &[GitAlias],
-) -> ForgeResult<(Vec<GitAlias>, Vec<(GitAlias, String)>, Vec<GitAlias>)> {
+pub fn diff_aliases(runner: &dyn CommandRunner, aliases: &[GitAlias]) -> ForgeResult<AliasDiff> {
     // Read current git aliases
     let current = read_current_aliases(runner)?;
 
@@ -101,7 +97,11 @@ pub fn diff_aliases(
         }
     }
 
-    Ok((to_add, to_change, unchanged))
+    Ok(AliasDiff {
+        to_add,
+        to_change,
+        unchanged,
+    })
 }
 
 /// Read currently configured git aliases from git config --global
@@ -246,17 +246,15 @@ lg = "log --oneline"
         use crate::exec::DryRunRunner;
 
         let runner = DryRunRunner;
-        let aliases = vec![
-            GitAlias {
-                name: "co".to_string(),
-                value: "checkout".to_string(),
-            },
-        ];
+        let aliases = vec![GitAlias {
+            name: "co".to_string(),
+            value: "checkout".to_string(),
+        }];
 
         // DryRunRunner returns empty git config, so everything is "to add"
-        let (to_add, to_change, unchanged) = diff_aliases(&runner, &aliases).unwrap();
-        assert_eq!(to_add.len(), 1);
-        assert!(to_change.is_empty());
-        assert!(unchanged.is_empty());
+        let diff = diff_aliases(&runner, &aliases).unwrap();
+        assert_eq!(diff.to_add.len(), 1);
+        assert!(diff.to_change.is_empty());
+        assert!(diff.unchanged.is_empty());
     }
 }

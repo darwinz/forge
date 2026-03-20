@@ -1,7 +1,7 @@
-use std::path::PathBuf;
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 /// Audit record for skill operations (schema defined in v1, populated in v2+)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,7 +29,7 @@ pub struct PermissionsRecord {
 }
 
 /// Placeholder: audit log reading will be implemented when execution is added (v2+)
-pub fn read_audit_log(_path: &PathBuf) -> Vec<AuditRecord> {
+pub fn read_audit_log(_path: &Path) -> Vec<AuditRecord> {
     // No audit entries exist in v1 (metadata-only)
     Vec::new()
 }

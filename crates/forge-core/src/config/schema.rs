@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ForgeConfig {
     #[serde(default)]
     pub general: GeneralConfig,
@@ -10,17 +10,6 @@ pub struct ForgeConfig {
     pub bootstrap: BootstrapConfig,
     #[serde(default)]
     pub skills: SkillsConfig,
-}
-
-impl Default for ForgeConfig {
-    fn default() -> Self {
-        Self {
-            general: GeneralConfig::default(),
-            shell: ShellConfig::default(),
-            bootstrap: BootstrapConfig::default(),
-            skills: SkillsConfig::default(),
-        }
-    }
 }
 
 impl ForgeConfig {

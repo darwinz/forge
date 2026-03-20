@@ -23,7 +23,7 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Bundle manifests and registry | Done |
 | Package inventory/status/drift reporting | Done |
 | Environment scan (pipx, uv, pnpm, bun, asdf, mise, bin dirs) | Done |
-| Bootstrap install (brew, brew cask, npm) | Done |
+| Bootstrap install (brew, brew cask, npm, go, gem) | Done |
 | Skills subsystem (metadata, discovery, validation) | Done (no execution) |
 | `--dry-run` across all commands | Done |
 | Docker utilities (host, images, ps, rm with guards) | Done |
@@ -143,7 +143,19 @@ forge bootstrap --yes                   # Skip confirmation prompt
 | Experimental | `editors`, `ios`, `elixir` | Opt-in. May not apply to every machine. |
 | AI Tools | `ai-tools` | Inventory and recommend. Manual entries show install instructions. |
 
-**What bootstrap handles today:** Homebrew formulae, Homebrew casks, npm global packages. Other sources (go, gem, pipx, etc.) appear in status reports but are not yet auto-installed.
+**Supported install sources:**
+
+| Source | Command | Notes |
+|--------|---------|-------|
+| Homebrew formulae | `brew install <pkg>` | Fully managed, on PATH via brew |
+| Homebrew casks | `brew install --cask <pkg>` | Fully managed |
+| npm globals | `npm install -g <pkg>` | Fully managed |
+| Go tools | `go install <pkg>` | Installs to `$GOPATH/bin` (default `~/go/bin`). You must ensure this is on your PATH. |
+| Gem packages | `gem install --user-install <pkg>` | Installs to `~/.gem/ruby/<version>/bin`. You must ensure this is on your PATH. No sudo. |
+
+Other sources (pipx, uv, pnpm, bun, composer) appear in status reports but are not yet auto-installed.
+
+Each package is installed individually so failures are reported accurately per-package. After install, forge prints PATH hints for sources like `go` and `gem` whose binaries may not be on your default PATH.
 
 **Manual entries** (like `claude`, `firecrawl-cli`) are never auto-installed. Bootstrap reports whether they're detected and shows install instructions.
 
@@ -254,11 +266,11 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (104 tests)
+cargo test                     # Run all tests (119 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 
-Tests cover CLI integration (help output, dry-run behavior, notes content, bootstrap planning, docker dry-run/guards, git alias listing/setup) and unit tests (parsers for npm, pnpm, pipx, uv, bun, composer, asdf, mise output formats, definition formatting, alias generation, git alias TOML parsing/diffing).
+Tests cover CLI integration (help output, dry-run behavior, notes content, bootstrap planning, docker dry-run/guards, git alias listing/setup) and unit tests (install planning/execution per-package reporting, path hints, profile loading, parsers for npm, pnpm, pipx, uv, bun, composer, asdf, mise output formats, definition formatting, alias generation, git alias TOML parsing/diffing).
 
 ## Migration from mycli
 

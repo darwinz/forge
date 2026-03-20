@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use std::collections::HashMap;
 use serde::Deserialize;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// Skill manifest loaded from skill.toml
 #[derive(Debug, Clone, Deserialize)]

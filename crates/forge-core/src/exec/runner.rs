@@ -36,9 +36,9 @@ impl CommandRunner for RealRunner {
         let output = std::process::Command::new(program)
             .args(args)
             .output()
-            .map_err(|e| crate::ForgeError::CommandFailed(
-                format!("failed to execute {program}: {e}")
-            ))?;
+            .map_err(|e| {
+                crate::ForgeError::CommandFailed(format!("failed to execute {program}: {e}"))
+            })?;
 
         Ok(CommandOutput {
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),

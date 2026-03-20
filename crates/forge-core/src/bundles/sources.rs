@@ -9,8 +9,8 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::exec::CommandRunner;
 use crate::error::ForgeResult;
+use crate::exec::CommandRunner;
 
 // ---------------------------------------------------------------------------
 // Source classification
@@ -24,9 +24,7 @@ pub enum InstallSource {
     /// Managed by a version/toolchain manager (asdf, mise)
     VersionManager(VersionManagerKind),
     /// Binary found in a well-known directory
-    StandaloneBinary {
-        dir: PathBuf,
-    },
+    StandaloneBinary { dir: PathBuf },
     /// Matched via a manual `check_command`
     Manual,
 }
@@ -140,13 +138,10 @@ fn run_stdout(runner: &dyn CommandRunner, cmd: &str, args: &[&str]) -> Option<St
     if runner.is_dry_run() {
         return None;
     }
-    runner.run(cmd, args).ok().and_then(|o| {
-        if o.success() {
-            Some(o.stdout)
-        } else {
-            None
-        }
-    })
+    runner
+        .run(cmd, args)
+        .ok()
+        .and_then(|o| if o.success() { Some(o.stdout) } else { None })
 }
 
 // ---------------------------------------------------------------------------
@@ -211,7 +206,12 @@ pub fn parse_uv_tool_output(stdout: &str) -> Vec<DetectedPackage> {
             let mut parts = line.split_whitespace();
             let name = parts.next()?;
             // Skip noise lines like "No tools installed", "Warning:", etc.
-            if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(true) {
+            if name
+                .chars()
+                .next()
+                .map(|c| c.is_uppercase())
+                .unwrap_or(true)
+            {
                 return None;
             }
             let version = parts.next().map(|v| v.trim_start_matches('v').to_string());
@@ -287,8 +287,7 @@ pub fn parse_bun_output(stdout: &str) -> Vec<DetectedPackage> {
         .lines()
         .filter_map(|line| {
             // Skip header lines, look for tree entries
-            let trimmed = line
-                .trim_start_matches(|c: char| "├─└│ \t".contains(c));
+            let trimmed = line.trim_start_matches(|c: char| "├─└│ \t".contains(c));
             if trimmed.is_empty() || trimmed.starts_with('/') {
                 return None;
             }
@@ -554,8 +553,10 @@ impl EnvironmentScan {
         let mut version_manager = Vec::new();
         let mut unavailable_managers = Vec::new();
 
+        type DetectFn = fn(&dyn CommandRunner) -> ForgeResult<Vec<DetectedPackage>>;
+
         // -- Package managers --
-        let pm_adapters: Vec<(&str, fn(&dyn CommandRunner) -> ForgeResult<Vec<DetectedPackage>>)> = vec![
+        let pm_adapters: Vec<(&str, DetectFn)> = vec![
             ("pipx", detect_pipx),
             ("uv tool", detect_uv_tool),
             ("pnpm", detect_pnpm),
@@ -583,10 +584,7 @@ impl EnvironmentScan {
         }
 
         // -- Version managers --
-        let vm_adapters: Vec<(&str, fn(&dyn CommandRunner) -> ForgeResult<Vec<DetectedPackage>>)> = vec![
-            ("asdf", detect_asdf),
-            ("mise", detect_mise),
-        ];
+        let vm_adapters: Vec<(&str, DetectFn)> = vec![("asdf", detect_asdf), ("mise", detect_mise)];
 
         for (label, detect_fn) in &vm_adapters {
             match detect_fn(runner) {

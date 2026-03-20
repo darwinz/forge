@@ -1,5 +1,5 @@
-use crate::exec::CommandRunner;
 use crate::error::ForgeResult;
+use crate::exec::CommandRunner;
 
 /// Find files by name pattern (uses `find`)
 pub fn find_file(runner: &dyn CommandRunner, pattern: &str) -> ForgeResult<String> {
@@ -9,15 +9,20 @@ pub fn find_file(runner: &dyn CommandRunner, pattern: &str) -> ForgeResult<Strin
 
 /// Recursive content search (uses `grep -r`)
 pub fn search(runner: &dyn CommandRunner, pattern: &str) -> ForgeResult<String> {
-    let output = runner.run("grep", &[
-        "-rn", "--color=never",
-        "--exclude-dir=.git",
-        "--exclude-dir=.svn",
-        "--exclude-dir=.idea",
-        "--exclude-dir=node_modules",
-        "--exclude-dir=target",
-        pattern, ".",
-    ])?;
+    let output = runner.run(
+        "grep",
+        &[
+            "-rn",
+            "--color=never",
+            "--exclude-dir=.git",
+            "--exclude-dir=.svn",
+            "--exclude-dir=.idea",
+            "--exclude-dir=node_modules",
+            "--exclude-dir=target",
+            pattern,
+            ".",
+        ],
+    )?;
     Ok(output.stdout)
 }
 

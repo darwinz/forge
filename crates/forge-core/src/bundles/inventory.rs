@@ -1,9 +1,7 @@
-use crate::exec::CommandRunner;
-use crate::error::ForgeResult;
 use super::registry::BundleManifest;
-use super::sources::{
-    self, DetectedPackage, InstallSource, PackageManagerKind, SourceCategory,
-};
+use super::sources::{self, DetectedPackage, InstallSource, PackageManagerKind, SourceCategory};
+use crate::error::ForgeResult;
+use crate::exec::CommandRunner;
 
 // ---------------------------------------------------------------------------
 // Package state — replaces the old bool
@@ -79,7 +77,10 @@ pub struct BundleReport {
 
 impl BundleReport {
     pub fn installed_count(&self) -> usize {
-        self.packages.iter().filter(|p| p.state.is_installed()).count()
+        self.packages
+            .iter()
+            .filter(|p| p.state.is_installed())
+            .count()
     }
 
     pub fn total_count(&self) -> usize {
@@ -87,14 +88,18 @@ impl BundleReport {
     }
 
     pub fn missing_packages(&self) -> Vec<&PackageStatus> {
-        self.packages.iter().filter(|p| p.state == PackageState::Missing).collect()
+        self.packages
+            .iter()
+            .filter(|p| p.state == PackageState::Missing)
+            .collect()
     }
 
     /// Summary label for the bundle.
     pub fn summary_label(&self) -> &'static str {
-        let has_unknown = self.packages.iter().any(|p| {
-            p.state == PackageState::Unknown || p.state == PackageState::Unavailable
-        });
+        let has_unknown = self
+            .packages
+            .iter()
+            .any(|p| p.state == PackageState::Unknown || p.state == PackageState::Unavailable);
         if self.installed_count() == self.total_count() {
             "all installed"
         } else if has_unknown {
@@ -177,7 +182,11 @@ impl BundleInventory {
                     name: formula.clone(),
                     source: InstallSource::PackageManager(PackageManagerKind::Brew),
                     version: None,
-                    state: if dry_run { PackageState::Unknown } else { installed.lookup_state(formula) },
+                    state: if dry_run {
+                        PackageState::Unknown
+                    } else {
+                        installed.lookup_state(formula)
+                    },
                 });
             }
             let installed_casks = query_brew(runner, true);
@@ -186,7 +195,11 @@ impl BundleInventory {
                     name: cask.clone(),
                     source: InstallSource::PackageManager(PackageManagerKind::BrewCask),
                     version: None,
-                    state: if dry_run { PackageState::Unknown } else { installed_casks.lookup_state(cask) },
+                    state: if dry_run {
+                        PackageState::Unknown
+                    } else {
+                        installed_casks.lookup_state(cask)
+                    },
                 });
             }
         }
@@ -199,7 +212,11 @@ impl BundleInventory {
                     name: pkg.clone(),
                     source: InstallSource::PackageManager(PackageManagerKind::Npm),
                     version: None,
-                    state: if dry_run { PackageState::Unknown } else { installed.lookup_state(pkg) },
+                    state: if dry_run {
+                        PackageState::Unknown
+                    } else {
+                        installed.lookup_state(pkg)
+                    },
                 });
             }
         }
@@ -207,13 +224,25 @@ impl BundleInventory {
         // --- pnpm ---
         if let Some(ref pnpm) = manifest.pnpm {
             let detected = query_detection(runner, sources::detect_pnpm);
-            check_against_detection(&pnpm.packages, &detected, PackageManagerKind::Pnpm, dry_run, &mut packages);
+            check_against_detection(
+                &pnpm.packages,
+                &detected,
+                PackageManagerKind::Pnpm,
+                dry_run,
+                &mut packages,
+            );
         }
 
         // --- bun ---
         if let Some(ref bun) = manifest.bun {
             let detected = query_detection(runner, sources::detect_bun);
-            check_against_detection(&bun.packages, &detected, PackageManagerKind::Bun, dry_run, &mut packages);
+            check_against_detection(
+                &bun.packages,
+                &detected,
+                PackageManagerKind::Bun,
+                dry_run,
+                &mut packages,
+            );
         }
 
         // --- go ---
@@ -248,7 +277,11 @@ impl BundleInventory {
                     name: pkg.clone(),
                     source: InstallSource::PackageManager(PackageManagerKind::Gem),
                     version: None,
-                    state: if dry_run { PackageState::Unknown } else { installed.lookup_state(pkg) },
+                    state: if dry_run {
+                        PackageState::Unknown
+                    } else {
+                        installed.lookup_state(pkg)
+                    },
                 });
             }
         }
@@ -256,13 +289,25 @@ impl BundleInventory {
         // --- pipx ---
         if let Some(ref pipx) = manifest.pipx {
             let detected = query_detection(runner, sources::detect_pipx);
-            check_against_detection(&pipx.packages, &detected, PackageManagerKind::Pipx, dry_run, &mut packages);
+            check_against_detection(
+                &pipx.packages,
+                &detected,
+                PackageManagerKind::Pipx,
+                dry_run,
+                &mut packages,
+            );
         }
 
         // --- uv tool ---
         if let Some(ref uv) = manifest.uv_tool {
             let detected = query_detection(runner, sources::detect_uv_tool);
-            check_against_detection(&uv.tools, &detected, PackageManagerKind::UvTool, dry_run, &mut packages);
+            check_against_detection(
+                &uv.tools,
+                &detected,
+                PackageManagerKind::UvTool,
+                dry_run,
+                &mut packages,
+            );
         }
 
         // --- composer ---
@@ -320,7 +365,11 @@ fn query_brew(runner: &dyn CommandRunner, cask: bool) -> ManagerResult {
     };
     match runner.run("brew", &args) {
         Ok(output) if output.success() => ManagerResult::Available(
-            output.stdout.lines().map(|l| l.trim().to_string()).collect(),
+            output
+                .stdout
+                .lines()
+                .map(|l| l.trim().to_string())
+                .collect(),
         ),
         _ => ManagerResult::Unavailable,
     }
@@ -366,7 +415,9 @@ fn query_gem(runner: &dyn CommandRunner) -> ManagerResult {
     }
     match runner.run("gem", &["list", "--no-details"]) {
         Ok(output) if output.success() => ManagerResult::Available(
-            output.stdout.lines()
+            output
+                .stdout
+                .lines()
                 .filter_map(|l| l.split_whitespace().next())
                 .map(|s| s.to_string())
                 .collect(),
@@ -475,10 +526,7 @@ mod tests {
 
     #[test]
     fn test_manager_result_lookup() {
-        let avail = ManagerResult::Available(vec![
-            "foo".to_string(),
-            "bar".to_string(),
-        ]);
+        let avail = ManagerResult::Available(vec!["foo".to_string(), "bar".to_string()]);
         assert_eq!(avail.lookup_state("foo"), PackageState::Installed);
         assert_eq!(avail.lookup_state("baz"), PackageState::Missing);
 

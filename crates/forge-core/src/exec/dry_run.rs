@@ -1,5 +1,5 @@
+use super::runner::{CommandOutput, CommandRunner};
 use crate::error::ForgeResult;
-use super::runner::{CommandRunner, CommandOutput};
 
 /// Dry-run command runner that prints commands without executing
 pub struct DryRunRunner;

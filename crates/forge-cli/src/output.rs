@@ -29,6 +29,7 @@ impl Printer {
         println!("{}", self.success.apply_to(text));
     }
 
+    #[allow(dead_code)]
     pub fn warning(&self, text: &str) {
         println!("{}", self.warning.apply_to(text));
     }

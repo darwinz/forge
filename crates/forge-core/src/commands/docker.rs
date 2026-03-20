@@ -1,5 +1,5 @@
-use crate::exec::CommandRunner;
 use crate::error::ForgeResult;
+use crate::exec::CommandRunner;
 
 /// Show the DOCKER_HOST environment variable
 pub fn docker_host() -> String {
@@ -82,10 +82,7 @@ pub fn docker_rm_containers(runner: &dyn CommandRunner) -> ForgeResult<String> {
 }
 
 /// Remove containers matching a filter (destructive — caller must confirm)
-pub fn docker_rm_by_filter(
-    runner: &dyn CommandRunner,
-    filter: &str,
-) -> ForgeResult<String> {
+pub fn docker_rm_by_filter(runner: &dyn CommandRunner, filter: &str) -> ForgeResult<String> {
     // List containers matching filter
     let list = runner.run("docker", &["ps", "-a", "-q", "--filter", filter])?;
     if runner.is_dry_run() {

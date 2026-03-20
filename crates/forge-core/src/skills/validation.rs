@@ -44,7 +44,10 @@ pub fn validate_skill(skill: &DiscoveredSkill) -> ValidationResult {
         // Check entrypoint exists
         let entrypoint = skill.path.join(&exec.entrypoint);
         if !entrypoint.exists() {
-            errors.push(format!("entrypoint '{}' not found at {:?}", exec.entrypoint, entrypoint));
+            errors.push(format!(
+                "entrypoint '{}' not found at {:?}",
+                exec.entrypoint, entrypoint
+            ));
         }
 
         // Validate exec type

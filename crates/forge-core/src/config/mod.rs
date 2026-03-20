@@ -29,17 +29,14 @@ pub fn load_config(config_path: Option<&Path>) -> ForgeResult<ForgeConfig> {
         .unwrap_or_else(|| forge_dir().join("config.toml"));
 
     if user_config_path.exists() {
-        let content = std::fs::read_to_string(&user_config_path).map_err(|e| {
-            ForgeError::FileRead {
+        let content =
+            std::fs::read_to_string(&user_config_path).map_err(|e| ForgeError::FileRead {
                 path: user_config_path.clone(),
                 source: e,
-            }
-        })?;
-        let user: ForgeConfig = toml::from_str(&content).map_err(|e| {
-            ForgeError::TomlParse {
-                path: user_config_path,
-                source: e,
-            }
+            })?;
+        let user: ForgeConfig = toml::from_str(&content).map_err(|e| ForgeError::TomlParse {
+            path: user_config_path,
+            source: e,
         })?;
         config.merge(user);
     }

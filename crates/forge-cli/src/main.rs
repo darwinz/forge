@@ -7,14 +7,11 @@ use anyhow::{Context, Result};
 use clap::Parser;
 
 use forge_core::{
-    bundles::{
-        installer, ActionKind, BundleInventory, BundleRegistry, EnvironmentScan,
-    },
-    commands::{notes, system, file_ops, misc, shell_aliases, docker, git},
+    bundles::{installer, ActionKind, BundleInventory, BundleRegistry, EnvironmentScan},
+    commands::{docker, file_ops, git, misc, notes, shell_aliases, system},
     config,
     exec::{CommandRunner, DryRunRunner, RealRunner},
-    logging,
-    os,
+    logging, os,
     skills::{
         audit,
         discovery::{self, resolve_skills_dir},
@@ -65,8 +62,15 @@ fn main() -> Result<()> {
                 cmd_bootstrap_scan(&printer, &*runner)?;
             } else {
                 cmd_bootstrap_install(
-                    &printer, &bundle_dir, &*runner, &config,
-                    bundles.as_deref(), add.as_deref(), all, yes, cli.dry_run,
+                    &printer,
+                    &bundle_dir,
+                    &*runner,
+                    &config,
+                    bundles.as_deref(),
+                    add.as_deref(),
+                    all,
+                    yes,
+                    cli.dry_run,
                 )?;
             }
         }
@@ -194,8 +198,7 @@ fn resolve_bundle_dir(config: &config::ForgeConfig) -> PathBuf {
 }
 
 fn cmd_bootstrap_list(printer: &Printer, bundle_dir: &Path) -> Result<()> {
-    let registry = BundleRegistry::load(bundle_dir)
-        .context("failed to load bundle manifests")?;
+    let registry = BundleRegistry::load(bundle_dir).context("failed to load bundle manifests")?;
 
     printer.newline();
     printer.heading("Available bundles:");
@@ -212,7 +215,10 @@ fn cmd_bootstrap_list(printer: &Printer, bundle_dir: &Path) -> Result<()> {
         printer.bold(&format!("  {tier_label}:"));
         for b in bundles {
             let required = if b.bundle.required { " [required]" } else { "" };
-            println!("    {:<16} {}{}", b.bundle.name, b.bundle.description, required);
+            println!(
+                "    {:<16} {}{}",
+                b.bundle.name, b.bundle.description, required
+            );
         }
         printer.newline();
     }
@@ -226,8 +232,7 @@ fn cmd_bootstrap_status(
     runner: &dyn CommandRunner,
     format: &str,
 ) -> Result<()> {
-    let registry = BundleRegistry::load(bundle_dir)
-        .context("failed to load bundle manifests")?;
+    let registry = BundleRegistry::load(bundle_dir).context("failed to load bundle manifests")?;
 
     let mut all_reports = Vec::new();
     for manifest in registry.all() {
@@ -285,7 +290,11 @@ fn print_status_json(reports: &[forge_core::bundles::inventory::BundleReport]) {
         println!("      \"packages\": [");
         for (j, pkg) in report.packages.iter().enumerate() {
             let ver = pkg.version.as_deref().unwrap_or("");
-            let comma = if j + 1 < report.packages.len() { "," } else { "" };
+            let comma = if j + 1 < report.packages.len() {
+                ","
+            } else {
+                ""
+            };
             println!(
                 "        {{\"name\": \"{}\", \"source\": \"{}\", \"version\": \"{}\", \"state\": \"{}\"}}{}",
                 pkg.name, pkg.source_label(), ver, pkg.state.label(), comma
@@ -310,8 +319,10 @@ fn cmd_bootstrap_scan(printer: &Printer, runner: &dyn CommandRunner) -> Result<(
     if !scan.package_manager.is_empty() {
         printer.bold("  Package-manager-installed tools:");
         // Group by source kind
-        let mut by_source: std::collections::BTreeMap<String, Vec<&forge_core::bundles::sources::DetectedPackage>> =
-            std::collections::BTreeMap::new();
+        let mut by_source: std::collections::BTreeMap<
+            String,
+            Vec<&forge_core::bundles::sources::DetectedPackage>,
+        > = std::collections::BTreeMap::new();
         for pkg in &scan.package_manager {
             by_source
                 .entry(pkg.source.to_string())
@@ -349,7 +360,8 @@ fn cmd_bootstrap_scan(printer: &Printer, runner: &dyn CommandRunner) -> Result<(
             printer.dim(&format!("    {} ({} binaries)", dir.display(), names.len()));
             // Show first 15 names, truncate if more
             let show = if names.len() > 15 { 15 } else { names.len() };
-            let mut display_names: Vec<&str> = names.iter().take(show).map(|s| s.as_str()).collect();
+            let mut display_names: Vec<&str> =
+                names.iter().take(show).map(|s| s.as_str()).collect();
             display_names.sort();
             println!("      {}", display_names.join(", "));
             if names.len() > show {
@@ -381,6 +393,7 @@ fn cmd_bootstrap_scan(printer: &Printer, runner: &dyn CommandRunner) -> Result<(
 
 // --- Bootstrap install ---
 
+#[allow(clippy::too_many_arguments)]
 fn cmd_bootstrap_install(
     printer: &Printer,
     bundle_dir: &Path,
@@ -392,12 +405,15 @@ fn cmd_bootstrap_install(
     yes: bool,
     dry_run: bool,
 ) -> Result<()> {
-    let registry = BundleRegistry::load(bundle_dir)
-        .context("failed to load bundle manifests")?;
+    let registry = BundleRegistry::load(bundle_dir).context("failed to load bundle manifests")?;
 
     // Resolve which bundles to install
     let bundle_names: Vec<String> = if all {
-        registry.all().iter().map(|b| b.bundle.name.clone()).collect()
+        registry
+            .all()
+            .iter()
+            .map(|b| b.bundle.name.clone())
+            .collect()
     } else if let Some(names) = bundles_arg {
         names.split(',').map(|s| s.trim().to_string()).collect()
     } else if let Some(name) = add_arg {
@@ -405,8 +421,7 @@ fn cmd_bootstrap_install(
     } else {
         // Load default profile
         let profile_path = resolve_profile_path(config);
-        installer::load_default_profile(&profile_path)
-            .unwrap_or_else(|_| vec!["core".to_string()])
+        installer::load_default_profile(&profile_path).unwrap_or_else(|_| vec!["core".to_string()])
     };
 
     // Validate bundle names
@@ -448,7 +463,10 @@ fn cmd_bootstrap_install(
     let skipped = plan.skipped();
     if !skipped.is_empty() {
         printer.newline();
-        printer.dim(&format!("  Skipped: {} packages (unsupported source for auto-install)", skipped.len()));
+        printer.dim(&format!(
+            "  Skipped: {} packages (unsupported source for auto-install)",
+            skipped.len()
+        ));
         for action in &skipped {
             if let ActionKind::Skipped { reason } = &action.kind {
                 println!("    {} — {reason}", action.package);
@@ -462,8 +480,17 @@ fn cmd_bootstrap_install(
         printer.newline();
         printer.bold("  Manual install required:");
         for action in &manual {
-            if let ActionKind::Manual { instructions, notes, detected } = &action.kind {
-                let status = if *detected { "detected" } else { "not detected" };
+            if let ActionKind::Manual {
+                instructions,
+                notes,
+                detected,
+            } = &action.kind
+            {
+                let status = if *detected {
+                    "detected"
+                } else {
+                    "not detected"
+                };
                 println!("    {} [{status}]", action.package);
                 println!("      Install: {instructions}");
                 if let Some(n) = notes {
@@ -494,7 +521,8 @@ fn cmd_bootstrap_install(
             to_install.len()
         ));
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input)
+        std::io::stdin()
+            .read_line(&mut input)
             .context("failed to read stdin")?;
         let answer = input.trim().to_lowercase();
         if answer != "y" && answer != "yes" {
@@ -525,6 +553,16 @@ fn cmd_bootstrap_install(
         printer.error(&format!("  Failed {} packages:", failed.len()));
         for r in &failed {
             println!("    [{}] {} — {}", r.source, r.package, r.message);
+        }
+    }
+
+    // Show PATH hints for sources that install to non-standard locations
+    let hints = installer::path_hints_for_results(&results);
+    if !hints.is_empty() {
+        printer.newline();
+        printer.bold("  PATH notes:");
+        for hint in &hints {
+            println!("    {hint}");
         }
     }
 
@@ -582,11 +620,17 @@ fn cmd_skill(
             printer.newline();
 
             let filtered: Vec<&DiscoveredSkill> = if let Some(ref tag_filter) = tag {
-                skills.iter().filter(|s| {
-                    s.manifest.skill.metadata.as_ref()
-                        .map(|m| m.tags.iter().any(|t| t == tag_filter))
-                        .unwrap_or(false)
-                }).collect()
+                skills
+                    .iter()
+                    .filter(|s| {
+                        s.manifest
+                            .skill
+                            .metadata
+                            .as_ref()
+                            .map(|m| m.tags.iter().any(|t| t == tag_filter))
+                            .unwrap_or(false)
+                    })
+                    .collect()
             } else {
                 skills.iter().collect()
             };
@@ -601,9 +645,7 @@ fn cmd_skill(
                 for skill in &filtered {
                     println!(
                         "  {:<24} {} [{}]",
-                        skill.manifest.skill.name,
-                        skill.manifest.skill.description,
-                        skill.source,
+                        skill.manifest.skill.name, skill.manifest.skill.description, skill.source,
                     );
                 }
             }
@@ -665,7 +707,10 @@ fn cmd_skill(
             let to_validate: Vec<&DiscoveredSkill> = if all {
                 skills.iter().collect()
             } else if let Some(ref n) = name {
-                skills.iter().filter(|s| s.manifest.skill.name == *n).collect()
+                skills
+                    .iter()
+                    .filter(|s| s.manifest.skill.name == *n)
+                    .collect()
             } else {
                 printer.error("Specify a skill name or --all");
                 return Ok(());
@@ -704,7 +749,8 @@ fn cmd_skill(
                 return Ok(());
             }
 
-            let skill_name = source.file_name()
+            let skill_name = source
+                .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| "unknown".to_string());
 
@@ -728,8 +774,11 @@ fn cmd_skill(
                 for record in &records {
                     println!(
                         "  {} {} v{} — {} ({}ms)",
-                        record.timestamp, record.skill_name, record.skill_version,
-                        record.action, record.duration_ms,
+                        record.timestamp,
+                        record.skill_name,
+                        record.skill_version,
+                        record.action,
+                        record.duration_ms,
                     );
                 }
             }
@@ -741,11 +790,7 @@ fn cmd_skill(
 
 // --- File ---
 
-fn cmd_file(
-    printer: &Printer,
-    runner: &dyn CommandRunner,
-    command: FileCommands,
-) -> Result<()> {
+fn cmd_file(printer: &Printer, runner: &dyn CommandRunner, command: FileCommands) -> Result<()> {
     match command {
         FileCommands::Find { pattern } => {
             let output = file_ops::find_file(runner, &pattern)?;
@@ -775,7 +820,8 @@ fn cmd_file(
             printer.dim("forge file mkdir-cd — not yet implemented (Phase 2, requires mutation).");
         }
         FileCommands::CleanupDs => {
-            printer.dim("forge file cleanup-ds — not yet implemented (Phase 2, requires mutation).");
+            printer
+                .dim("forge file cleanup-ds — not yet implemented (Phase 2, requires mutation).");
         }
     }
     Ok(())
@@ -783,11 +829,7 @@ fn cmd_file(
 
 // --- Misc ---
 
-fn cmd_misc(
-    printer: &Printer,
-    runner: &dyn CommandRunner,
-    command: MiscCommands,
-) -> Result<()> {
+fn cmd_misc(printer: &Printer, runner: &dyn CommandRunner, command: MiscCommands) -> Result<()> {
     match command {
         MiscCommands::Weather { location } => {
             let output = misc::weather(runner, location.as_deref())?;
@@ -843,11 +885,9 @@ fn cmd_docker(
             }
         }
         DockerCommands::RmImages { yes } => {
-            if !dry_run && !yes {
-                if !confirm_destructive(printer, "Remove ALL docker images?")? {
-                    printer.dim("Aborted.");
-                    return Ok(());
-                }
+            if !dry_run && !yes && !confirm_destructive(printer, "Remove ALL docker images?")? {
+                printer.dim("Aborted.");
+                return Ok(());
             }
             let output = docker::docker_rm_images(runner)?;
             if !output.is_empty() {
@@ -855,11 +895,9 @@ fn cmd_docker(
             }
         }
         DockerCommands::RmContainers { yes } => {
-            if !dry_run && !yes {
-                if !confirm_destructive(printer, "Remove ALL docker containers?")? {
-                    printer.dim("Aborted.");
-                    return Ok(());
-                }
+            if !dry_run && !yes && !confirm_destructive(printer, "Remove ALL docker containers?")? {
+                printer.dim("Aborted.");
+                return Ok(());
             }
             let output = docker::docker_rm_containers(runner)?;
             if !output.is_empty() {
@@ -867,14 +905,15 @@ fn cmd_docker(
             }
         }
         DockerCommands::RmByFilter { filter, yes } => {
-            if !dry_run && !yes {
-                if !confirm_destructive(
+            if !dry_run
+                && !yes
+                && !confirm_destructive(
                     printer,
                     &format!("Remove containers matching filter '{filter}'?"),
-                )? {
-                    printer.dim("Aborted.");
-                    return Ok(());
-                }
+                )?
+            {
+                printer.dim("Aborted.");
+                return Ok(());
             }
             let output = docker::docker_rm_by_filter(runner, &filter)?;
             if !output.is_empty() {
@@ -930,8 +969,8 @@ fn cmd_git(
 ) -> Result<()> {
     match command {
         GitCommands::ListAliases => {
-            let aliases = git::load_aliases(aliases_path)
-                .context("failed to load git aliases config")?;
+            let aliases =
+                git::load_aliases(aliases_path).context("failed to load git aliases config")?;
             printer.newline();
             printer.heading("Configured git aliases:");
             printer.newline();
@@ -941,8 +980,8 @@ fn cmd_git(
             printer.newline();
         }
         GitCommands::SetupAliases => {
-            let aliases = git::load_aliases(aliases_path)
-                .context("failed to load git aliases config")?;
+            let aliases =
+                git::load_aliases(aliases_path).context("failed to load git aliases config")?;
 
             if aliases.is_empty() {
                 printer.dim("No aliases found in config.");
@@ -950,7 +989,12 @@ fn cmd_git(
             }
 
             // Show diff preview
-            let (to_add, to_change, unchanged) = git::diff_aliases(runner, &aliases)?;
+            let diff = git::diff_aliases(runner, &aliases)?;
+            let git::AliasDiff {
+                to_add,
+                to_change,
+                unchanged,
+            } = diff;
 
             printer.newline();
             printer.heading("Git alias setup preview:");
@@ -973,7 +1017,10 @@ fn cmd_git(
 
             if !unchanged.is_empty() {
                 printer.newline();
-                printer.dim(&format!("  Already up-to-date: {} alias(es)", unchanged.len()));
+                printer.dim(&format!(
+                    "  Already up-to-date: {} alias(es)",
+                    unchanged.len()
+                ));
             }
 
             printer.newline();

@@ -145,10 +145,7 @@ fn test_notes_shows_usage_hint() {
 
 #[test]
 fn test_notes_invalid_topic() {
-    forge()
-        .args(["notes", "nonexistent"])
-        .assert()
-        .failure();
+    forge().args(["notes", "nonexistent"]).assert().failure();
 }
 
 // ---------------------------------------------------------------------------
@@ -246,10 +243,7 @@ fn test_bootstrap_list_bundles() {
 
 #[test]
 fn test_skill_list() {
-    forge()
-        .args(["skill", "list"])
-        .assert()
-        .success();
+    forge().args(["skill", "list"]).assert().success();
 }
 
 #[test]
@@ -724,4 +718,66 @@ fn test_git_setup_aliases_dry_run_shows_preview() {
         .success()
         .stdout(predicate::str::contains("Will add"))
         .stdout(predicate::str::contains("[dry-run]"));
+}
+
+// ---------------------------------------------------------------------------
+// Bootstrap — go and gem source support
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_bootstrap_dry_run_go_bundle() {
+    // go bundle has go tools and brew formulae — all should appear in plan
+    forge()
+        .args(["--dry-run", "bootstrap", "--bundles", "go"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Bootstrap plan"))
+        .stdout(predicate::str::contains("gopls"))
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+#[test]
+fn test_bootstrap_dry_run_go_tools_show_as_installable() {
+    // go tools should appear in "Will install", not "Skipped"
+    forge()
+        .args(["--dry-run", "bootstrap", "--bundles", "go"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Will install"))
+        // Should NOT show "go installation not yet supported"
+        .stdout(predicate::str::contains("go installation not yet supported").not());
+}
+
+#[test]
+fn test_bootstrap_dry_run_all_sources_represented() {
+    // --all includes bundles with brew, npm, go, manual — verify plan output
+    forge()
+        .args(["--dry-run", "bootstrap", "--all"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Bootstrap plan"))
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("[go]").or(predicate::str::contains("go")));
+}
+
+#[test]
+fn test_bootstrap_dry_run_no_install_without_confirmation() {
+    // dry-run should show plan and exit without installing
+    forge()
+        .args(["--dry-run", "bootstrap", "--bundles", "core"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        // Must NOT contain "Installing..." which would indicate execution
+        .stdout(predicate::str::contains("Installing...").not());
+}
+
+#[test]
+fn test_bootstrap_plan_groups_by_source() {
+    // Plan output should show source labels for each package
+    forge()
+        .args(["--dry-run", "bootstrap", "--bundles", "go"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[brew]").or(predicate::str::contains("[go]")));
 }

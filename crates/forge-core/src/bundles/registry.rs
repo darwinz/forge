@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
-use serde::Deserialize;
 use crate::error::{ForgeError, ForgeResult};
+use serde::Deserialize;
+use std::path::{Path, PathBuf};
 
 /// A bundle manifest loaded from TOML
 #[derive(Debug, Clone, Deserialize)]
@@ -140,12 +140,11 @@ impl BundleRegistry {
                 path: path.clone(),
                 source: e,
             })?;
-            let manifest: BundleManifest = toml::from_str(&content).map_err(|e| {
-                ForgeError::TomlParse {
+            let manifest: BundleManifest =
+                toml::from_str(&content).map_err(|e| ForgeError::TomlParse {
                     path: path.clone(),
                     source: e,
-                }
-            })?;
+                })?;
             bundles.push(manifest);
         }
 
@@ -168,7 +167,9 @@ impl BundleRegistry {
         let mut result = Vec::new();
 
         for tier in &tier_order {
-            let tier_bundles: Vec<&BundleManifest> = self.bundles.iter()
+            let tier_bundles: Vec<&BundleManifest> = self
+                .bundles
+                .iter()
                 .filter(|b| b.bundle.tier == *tier)
                 .collect();
             if !tier_bundles.is_empty() {

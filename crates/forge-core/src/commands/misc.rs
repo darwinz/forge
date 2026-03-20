@@ -1,5 +1,5 @@
-use crate::exec::CommandRunner;
 use crate::error::ForgeResult;
+use crate::exec::CommandRunner;
 
 /// Get weather for a location via wttr.in
 pub fn weather(runner: &dyn CommandRunner, location: Option<&str>) -> ForgeResult<String> {

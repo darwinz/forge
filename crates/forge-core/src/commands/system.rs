@@ -1,6 +1,6 @@
+use crate::error::ForgeResult;
 use crate::exec::CommandRunner;
 use crate::os::OsPlatform;
-use crate::error::ForgeResult;
 
 /// List top memory-consuming processes (via top)
 pub fn mem_hogs_top(runner: &dyn CommandRunner) -> ForgeResult<String> {
@@ -50,7 +50,15 @@ pub fn find_pid(runner: &dyn CommandRunner, name: &str) -> ForgeResult<String> {
 /// List user's processes
 pub fn my_ps(runner: &dyn CommandRunner) -> ForgeResult<String> {
     let user = std::env::var("USER").unwrap_or_else(|_| "root".to_string());
-    let output = runner.run("ps", &["-u", &user, "-o", "pid,%cpu,%mem,start,time,bsdtime,command"])?;
+    let output = runner.run(
+        "ps",
+        &[
+            "-u",
+            &user,
+            "-o",
+            "pid,%cpu,%mem,start,time,bsdtime,command",
+        ],
+    )?;
     Ok(output.stdout)
 }
 
@@ -76,7 +84,9 @@ pub fn used_port(runner: &dyn CommandRunner, port: u16) -> ForgeResult<String> {
     if runner.is_dry_run() {
         return Ok(String::new());
     }
-    let lines: Vec<&str> = output.stdout.lines()
+    let lines: Vec<&str> = output
+        .stdout
+        .lines()
         .filter(|l| l.contains("LISTEN"))
         .collect();
     Ok(lines.join("\n"))

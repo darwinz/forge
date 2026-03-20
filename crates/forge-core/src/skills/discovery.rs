@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
-use crate::error::{ForgeError, ForgeResult};
 use super::metadata::{DiscoveredSkill, SkillManifest, SkillSource};
+use crate::error::{ForgeError, ForgeResult};
+use std::path::{Path, PathBuf};
 
 /// Discover skills from all search paths
 pub fn discover_skills(
