@@ -1,0 +1,25 @@
+[bundle]
+name = "python-ml"
+description = "Python ML libraries — large packages with platform-specific builds"
+tier = "experimental"
+
+# ML libraries are large (tensorflow ~500MB, pytorch ~2GB) and have
+# platform-specific builds (CPU vs GPU, Apple Silicon vs x86).
+# They should ALWAYS be installed in a project virtualenv.
+#
+# Recommended workflow:
+#   uv venv .venv && source .venv/bin/activate
+#   uv pip install torch       # CPU-only, auto-detects platform
+#   uv pip install tensorflow  # CPU-only on macOS, GPU on Linux with CUDA
+
+[[manual]]
+name = "tensorflow"
+check_command = "python3 -c 'import tensorflow'"
+install_instructions = "uv pip install tensorflow (inside a virtualenv)"
+notes = "Large (~500MB). On macOS use tensorflow-macos for Apple Silicon GPU. On Linux, install tensorflow[and-cuda] for GPU support."
+
+[[manual]]
+name = "pytorch"
+check_command = "python3 -c 'import torch'"
+install_instructions = "uv pip install torch (inside a virtualenv)"
+notes = "Large (~2GB). For GPU support, see https://pytorch.org/get-started/locally/ for platform-specific install commands."

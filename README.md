@@ -23,7 +23,7 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Bundle manifests and registry | Done |
 | Package inventory/status/drift reporting | Done |
 | Environment scan (pipx, uv, pnpm, bun, asdf, mise, bin dirs) | Done |
-| Bootstrap install (brew, brew cask, npm, go, gem) | Done |
+| Bootstrap install (brew, brew cask, npm, go, gem, uv tool) | Done |
 | Skills subsystem (metadata, discovery, validation) | Done (no execution) |
 | `--dry-run` across all commands | Done |
 | Docker utilities (host, images, ps, rm with guards) | Done |
@@ -155,8 +155,8 @@ forge bootstrap --yes                   # Skip confirmation prompt
 | Tier | Bundles | Behavior |
 |------|---------|----------|
 | Core | `core` | Essential shell tools. Always included. |
-| Role | `go`, `node`, `python`, `ruby`, `devops`, `git` | Opt-in per development stack. |
-| Experimental | `editors`, `ios`, `elixir` | Opt-in. May not apply to every machine. |
+| Role | `go`, `node`, `python`, `python-libs`, `ruby`, `devops`, `git`, `platforms` | Opt-in per development stack. |
+| Experimental | `editors`, `ios`, `elixir`, `python-ml` | Opt-in. May not apply to every machine. |
 | AI Tools | `ai-tools` | Inventory and recommend. Manual entries show install instructions. |
 
 **Supported install sources:**
@@ -168,8 +168,9 @@ forge bootstrap --yes                   # Skip confirmation prompt
 | npm globals | `npm install -g <pkg>` | Fully managed |
 | Go tools | `go install <pkg>` | Installs to `$GOPATH/bin` (default `~/go/bin`). You must ensure this is on your PATH. |
 | Gem packages | `gem install --user-install <pkg>` | Installs to `~/.gem/ruby/<version>/bin`. You must ensure this is on your PATH. No sudo. |
+| uv tools | `uv tool install <pkg>` | Isolated venv per tool, binaries in `~/.local/bin`. You must ensure this is on your PATH. |
 
-Other sources (pipx, uv, pnpm, bun, composer) appear in status reports but are not yet auto-installed.
+Other sources (pipx, pnpm, bun, composer) appear in status reports but are not yet auto-installed.
 
 Each package is installed individually so failures are reported accurately per-package. After install, forge prints PATH hints for sources like `go` and `gem` whose binaries may not be on your default PATH.
 
@@ -397,7 +398,7 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (269 tests)
+cargo test                     # Run all tests (273 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 

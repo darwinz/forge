@@ -1136,6 +1136,50 @@ fn test_bootstrap_list_includes_platforms() {
         .stdout(predicate::str::contains("platforms"));
 }
 
+#[test]
+fn test_bootstrap_list_includes_python_bundles() {
+    forge()
+        .args(["bootstrap", "--list-bundles"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("python"))
+        .stdout(predicate::str::contains("python-libs"))
+        .stdout(predicate::str::contains("python-ml"));
+}
+
+#[test]
+fn test_bootstrap_dry_run_python_uv_tools() {
+    forge()
+        .args(["--dry-run", "bootstrap", "--bundles", "python"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[uv-tool]"))
+        .stdout(predicate::str::contains("ipython"))
+        .stdout(predicate::str::contains("pytest"));
+}
+
+#[test]
+fn test_bootstrap_dry_run_python_libs_manual() {
+    forge()
+        .args(["--dry-run", "bootstrap", "--bundles", "python-libs"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Manual install required"))
+        .stdout(predicate::str::contains("requests"))
+        .stdout(predicate::str::contains("virtualenv"));
+}
+
+#[test]
+fn test_bootstrap_dry_run_python_ml_manual() {
+    forge()
+        .args(["--dry-run", "bootstrap", "--bundles", "python-ml"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Manual install required"))
+        .stdout(predicate::str::contains("tensorflow"))
+        .stdout(predicate::str::contains("pytorch"));
+}
+
 // ---------------------------------------------------------------------------
 // Vercel commands
 // ---------------------------------------------------------------------------

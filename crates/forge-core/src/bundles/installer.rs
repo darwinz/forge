@@ -6,6 +6,7 @@
 //!   - npm global packages (on PATH via npm prefix)
 //!   - go tools (`go install` — binary goes to $GOPATH/bin, needs PATH setup)
 //!   - gem packages (`gem install --user-install` — needs PATH setup, no sudo)
+//!   - uv tools (`uv tool install` — isolated venvs, binaries in ~/.local/bin)
 //!
 //! Each package is installed individually for accurate per-package error reporting.
 //! After execution, call `path_hints_for_results()` to surface PATH guidance for
@@ -116,7 +117,9 @@ pub fn plan_install(
                 | ("go", PackageState::Missing)
                 | ("go", PackageState::Unknown)
                 | ("gem", PackageState::Missing)
-                | ("gem", PackageState::Unknown) => InstallAction {
+                | ("gem", PackageState::Unknown)
+                | ("uv-tool", PackageState::Missing)
+                | ("uv-tool", PackageState::Unknown) => InstallAction {
                     package: pkg.name.clone(),
                     source: source_str,
                     kind: ActionKind::Install,
@@ -152,7 +155,7 @@ pub fn plan_install(
                         },
                     }
                 }
-                // Unsupported sources (pipx, uv, pnpm, bun, composer) — skip for now
+                // Unsupported sources (pipx, pnpm, bun, composer) — skip for now
                 (_, PackageState::Missing)
                 | (_, PackageState::Unknown)
                 | (_, PackageState::Unavailable) => InstallAction {
@@ -229,6 +232,13 @@ pub fn execute_plan(plan: &InstallPlan, runner: &dyn CommandRunner) -> Vec<Insta
                 &action.package,
                 "gem",
             ),
+            "uv-tool" => install_one(
+                runner,
+                "uv",
+                &["tool", "install", &action.package],
+                &action.package,
+                "uv-tool",
+            ),
             other => InstallResult {
                 package: action.package.clone(),
                 source: other.to_string(),
@@ -292,6 +302,7 @@ pub fn path_hint(source: &str) -> Option<&'static str> {
     match source {
         "go" => Some("Go binaries are installed to $GOPATH/bin (default: ~/go/bin). Ensure it is on your PATH."),
         "gem" => Some("Gem binaries from --user-install go to ~/.gem/ruby/<version>/bin. Ensure it is on your PATH."),
+        "uv-tool" => Some("uv tool binaries are installed to ~/.local/bin. Ensure it is on your PATH."),
         _ => None,
     }
 }

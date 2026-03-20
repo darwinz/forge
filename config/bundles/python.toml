@@ -1,7 +1,11 @@
 [bundle]
 name = "python"
-description = "Python development — pyenv, uv, virtualenv"
+description = "Python toolchain — pyenv, uv, virtualenv"
 tier = "role"
 
 [brew]
 formulae = ["pyenv", "pyenv-virtualenv", "uv"]
+
+# CLI tools installed via `uv tool install` (isolated venvs, binaries on PATH)
+[uv_tool]
+tools = ["ipython", "pytest"]

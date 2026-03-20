@@ -1,0 +1,48 @@
+[bundle]
+name = "python-libs"
+description = "Python libraries — install into your project virtualenv, not system-wide"
+tier = "role"
+
+# Libraries should be installed into project virtualenvs, not globally.
+# These manual entries track whether each library is available and show
+# the recommended install command.
+#
+# Recommended workflow:
+#   uv venv .venv && source .venv/bin/activate
+#   uv pip install requests sqlalchemy sqlmodel httpx numpy pandas
+
+[[manual]]
+name = "requests"
+check_command = "python3 -c 'import requests'"
+install_instructions = "uv pip install requests (inside a virtualenv)"
+notes = "HTTP client. Install in your project venv: uv venv && uv pip install requests"
+
+[[manual]]
+name = "sqlalchemy"
+check_command = "python3 -c 'import sqlalchemy'"
+install_instructions = "uv pip install sqlalchemy (inside a virtualenv)"
+notes = "SQL toolkit and ORM"
+
+[[manual]]
+name = "sqlmodel"
+check_command = "python3 -c 'import sqlmodel'"
+install_instructions = "uv pip install sqlmodel (inside a virtualenv)"
+notes = "SQLModel — SQLAlchemy + Pydantic"
+
+[[manual]]
+name = "httpx"
+check_command = "python3 -c 'import httpx'"
+install_instructions = "uv pip install httpx (inside a virtualenv)"
+notes = "Async-capable HTTP client"
+
+[[manual]]
+name = "numpy"
+check_command = "python3 -c 'import numpy'"
+install_instructions = "uv pip install numpy (inside a virtualenv)"
+notes = "Numerical computing"
+
+[[manual]]
+name = "pandas"
+check_command = "python3 -c 'import pandas'"
+install_instructions = "uv pip install pandas (inside a virtualenv)"
+notes = "Data analysis and manipulation"
