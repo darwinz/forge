@@ -264,6 +264,54 @@ fn test_skill_audit() {
 }
 
 #[test]
+fn test_skill_run_not_found() {
+    forge()
+        .args(["skill", "run", "nonexistent"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not found"));
+}
+
+#[test]
+fn test_skill_run_help() {
+    forge()
+        .args(["skill", "run", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--input"))
+        .stdout(predicate::str::contains("--yes"));
+}
+
+#[test]
+fn test_skill_trust_help() {
+    forge()
+        .args(["skill", "trust", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("name"));
+}
+
+#[test]
+fn test_skill_revoke_help() {
+    forge()
+        .args(["skill", "revoke", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("name"));
+}
+
+#[test]
+fn test_skill_help_includes_run() {
+    forge()
+        .args(["skill", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("run"))
+        .stdout(predicate::str::contains("trust"))
+        .stdout(predicate::str::contains("revoke"));
+}
+
+#[test]
 fn test_bootstrap_scan() {
     forge()
         .args(["bootstrap", "--scan"])

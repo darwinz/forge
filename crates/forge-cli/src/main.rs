@@ -1,6 +1,7 @@
 mod args;
 mod output;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -18,6 +19,7 @@ use forge_core::{
     skills::{
         audit,
         discovery::{self, resolve_skills_dir},
+        execution,
         metadata::DiscoveredSkill,
         validation,
     },
@@ -80,7 +82,14 @@ fn main() -> Result<()> {
         Commands::Skill { command } => {
             let user_dir = resolve_skills_dir(&config.skills.user_dir);
             let repo_dir = find_repo_skills_dir(&config.skills.repo_dir);
-            cmd_skill(&printer, command, &user_dir, repo_dir.as_deref(), &config)?;
+            cmd_skill(
+                &printer,
+                command,
+                &user_dir,
+                repo_dir.as_deref(),
+                &config,
+                cli.dry_run,
+            )?;
         }
         Commands::File { command } => cmd_file(&printer, &*runner, command, cli.dry_run)?,
         Commands::Docker { command } => {
@@ -616,12 +625,14 @@ fn find_repo_skills_dir(repo_dir_config: &str) -> Option<PathBuf> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn cmd_skill(
     printer: &Printer,
     command: SkillCommands,
     user_dir: &Path,
     repo_dir: Option<&Path>,
     config: &config::ForgeConfig,
+    dry_run: bool,
 ) -> Result<()> {
     match command {
         SkillCommands::List { tag } => {
@@ -780,7 +791,6 @@ fn cmd_skill(
 
             if records.is_empty() {
                 printer.dim("No audit records found.");
-                printer.dim("Audit logging begins when skill execution is implemented (v2+).");
             } else {
                 for record in &records {
                     println!(
@@ -794,9 +804,275 @@ fn cmd_skill(
                 }
             }
         }
+
+        SkillCommands::Run { name, input, yes } => {
+            let skills = discovery::discover_skills(user_dir, repo_dir)?;
+            let skill = skills
+                .iter()
+                .find(|s| s.manifest.skill.name == name)
+                .ok_or_else(|| anyhow::anyhow!("Skill not found: {name}"))?;
+
+            let start = std::time::Instant::now();
+            let audit_path = resolve_skills_dir(&config.skills.audit_log);
+
+            // Pre-flight: check execution type
+            if let Err(e) = execution::check_execution_type(skill) {
+                printer.error(&e.to_string());
+                let _ = execution::write_audit_record(
+                    &audit_path,
+                    skill,
+                    "rejected",
+                    &HashMap::new(),
+                    &[],
+                    false,
+                    0,
+                    Some(&e.to_string()),
+                );
+                return Ok(());
+            }
+
+            // Pre-flight: check V1 permissions
+            if let Err(e) = execution::check_permissions_v1(skill) {
+                printer.error(&e.to_string());
+                let _ = execution::write_audit_record(
+                    &audit_path,
+                    skill,
+                    "rejected",
+                    &HashMap::new(),
+                    &[],
+                    false,
+                    0,
+                    Some(&e.to_string()),
+                );
+                return Ok(());
+            }
+
+            // Parse inputs
+            let inputs = parse_skill_inputs(&input)?;
+
+            // Check trust
+            let trust_path = resolve_skills_dir("~/.forge/trust.toml");
+            let trust_store = execution::TrustStore::load(&trust_path);
+            let trust_status = execution::check_trust(skill, &trust_store)?;
+
+            match trust_status {
+                execution::TrustStatus::UntrustedRepo { .. } => {
+                    printer.error(&format!(
+                        "Skill '{}' is repo-scoped and not trusted for write operations.",
+                        name
+                    ));
+                    printer.dim(&format!("  Run: forge skill trust {name}"));
+                    let _ = execution::write_audit_record(
+                        &audit_path,
+                        skill,
+                        "denied",
+                        &inputs,
+                        &[],
+                        false,
+                        0,
+                        Some("untrusted repo-scoped skill"),
+                    );
+                    return Ok(());
+                }
+                execution::TrustStatus::NeedsApproval { .. } => {
+                    if !printer.is_interactive() {
+                        printer.error("Skill needs approval but running non-interactively.");
+                        printer.dim(&format!("  Run: forge skill trust {name}"));
+                        return Ok(());
+                    }
+                    // Show what the skill wants to do
+                    printer.newline();
+                    printer.warning(&format!(
+                        "Skill '{}' requests write_files permission (first run).",
+                        name
+                    ));
+                    if let Some(ref perms) = skill.manifest.skill.permissions {
+                        printer.dim(&format!(
+                            "  Permissions: read_files={}, write_files={}",
+                            perms.read_files, perms.write_files
+                        ));
+                    }
+                    if !printer.confirm("Allow this skill to write files?")? {
+                        printer.dim("Denied.");
+                        return Ok(());
+                    }
+                    // Persist trust
+                    let hash = execution::compute_skill_hash(&skill.path)?;
+                    let mut store = trust_store;
+                    store.set_user_trust(&name, &hash);
+                    let _ = store.save(&trust_path);
+                }
+                execution::TrustStatus::Trusted => {}
+            }
+
+            // Plan execution
+            let cwd = std::env::current_dir().context("could not determine working directory")?;
+            let plan = execution::plan_template_execution(skill, &inputs, &cwd)?;
+
+            // Show preview
+            printer.newline();
+            printer.heading(&format!(
+                "Skill: {} v{}",
+                plan.skill_name, plan.skill_version
+            ));
+            printer.newline();
+
+            if !plan.inputs_redacted.is_empty() {
+                printer.bold("  Inputs:");
+                for (k, v) in &plan.inputs_redacted {
+                    println!("    {k} = {v}");
+                }
+                printer.newline();
+            }
+
+            if plan.writes.is_empty() {
+                printer.dim("  No files to write.");
+                return Ok(());
+            }
+
+            printer.bold(&format!("  Files to write ({}):", plan.writes.len()));
+            for write in &plan.writes {
+                let status = if write.is_overwrite {
+                    " (overwrite)"
+                } else {
+                    " (new)"
+                };
+                println!("    {}{status}", write.destination.display());
+                // Show diff for overwrites
+                if let Some(ref existing) = write.existing_content {
+                    printer.dim("    --- existing ---");
+                    for line in existing.lines().take(5) {
+                        printer.dim(&format!("    - {line}"));
+                    }
+                    printer.dim("    +++ new +++");
+                    for line in write.content.lines().take(5) {
+                        printer.dim(&format!("    + {line}"));
+                    }
+                }
+            }
+            printer.newline();
+
+            if dry_run {
+                printer.dim("[dry-run] No files will be written.");
+                let _ = execution::write_audit_record(
+                    &audit_path,
+                    skill,
+                    "dry-run",
+                    &inputs,
+                    &[],
+                    true,
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
+                return Ok(());
+            }
+
+            // Confirmation
+            if !yes {
+                if !printer.is_interactive() {
+                    printer.error("Write confirmation required but running non-interactively.");
+                    printer.dim("  Use --yes with a trusted skill to skip confirmation.");
+                    return Ok(());
+                }
+                if !printer.confirm(&format!("Write {} file(s)?", plan.writes.len()))? {
+                    printer.dim("Aborted.");
+                    return Ok(());
+                }
+            }
+
+            // Execute
+            let result = execution::execute_plan(&plan);
+
+            let _ = execution::write_audit_record(
+                &audit_path,
+                skill,
+                "run",
+                &inputs,
+                &result.files_written,
+                true,
+                start.elapsed().as_millis() as u64,
+                if result.success {
+                    None
+                } else {
+                    Some("partial failure")
+                },
+            );
+
+            if !result.files_written.is_empty() {
+                printer.success(&format!("  Wrote {} file(s):", result.files_written.len()));
+                for f in &result.files_written {
+                    println!("    {}", f.display());
+                }
+            }
+            if !result.errors.is_empty() {
+                printer.error(&format!("  {} error(s):", result.errors.len()));
+                for e in &result.errors {
+                    println!("    {e}");
+                }
+            }
+            printer.newline();
+        }
+
+        SkillCommands::Trust { name } => {
+            let skills = discovery::discover_skills(user_dir, repo_dir)?;
+            let skill = skills
+                .iter()
+                .find(|s| s.manifest.skill.name == name)
+                .ok_or_else(|| anyhow::anyhow!("Skill not found: {name}"))?;
+
+            let hash = execution::compute_skill_hash(&skill.path)?;
+            let trust_path = resolve_skills_dir("~/.forge/trust.toml");
+            let mut trust_store = execution::TrustStore::load(&trust_path);
+
+            printer.newline();
+            printer.heading(&format!("Trust skill: {name}"));
+            printer.newline();
+            println!("  Source:  {}", skill.source);
+            println!("  Path:    {}", skill.path.display());
+            println!("  Hash:    {hash}");
+            if let Some(ref perms) = skill.manifest.skill.permissions {
+                println!(
+                    "  Permissions: read_files={}, write_files={}",
+                    perms.read_files, perms.write_files
+                );
+            }
+            printer.newline();
+
+            match &skill.source {
+                forge_core::skills::metadata::SkillSource::RepoScoped => {
+                    let repo_key = execution::repo_path_hash(&skill.path);
+                    trust_store.set_repo_trust(&repo_key, &name, &hash);
+                }
+                _ => {
+                    trust_store.set_user_trust(&name, &hash);
+                }
+            }
+            trust_store.save(&trust_path)?;
+            printer.success(&format!("  Trusted: {name}"));
+            printer.newline();
+        }
+
+        SkillCommands::Revoke { name } => {
+            let trust_path = resolve_skills_dir("~/.forge/trust.toml");
+            let mut trust_store = execution::TrustStore::load(&trust_path);
+            trust_store.revoke(&name);
+            trust_store.save(&trust_path)?;
+            printer.success(&format!("  Revoked trust: {name}"));
+        }
     }
 
     Ok(())
+}
+
+fn parse_skill_inputs(raw: &[String]) -> Result<HashMap<String, String>> {
+    let mut inputs = HashMap::new();
+    for item in raw {
+        let (key, value) = item.split_once('=').ok_or_else(|| {
+            anyhow::anyhow!("Invalid input format: '{item}'. Expected key=value.")
+        })?;
+        inputs.insert(key.to_string(), value.to_string());
+    }
+    Ok(inputs)
 }
 
 // --- File ---

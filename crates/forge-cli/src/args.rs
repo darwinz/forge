@@ -151,7 +151,7 @@ pub enum Commands {
         yes: bool,
     },
 
-    /// AI skill management (v1: metadata only, no execution)
+    /// AI skill management and execution
     #[command(arg_required_else_help = true)]
     Skill {
         #[command(subcommand)]
@@ -430,6 +430,27 @@ pub enum SkillCommands {
         /// Filter by skill name
         #[arg(long)]
         skill: Option<String>,
+    },
+    /// Execute a template skill
+    Run {
+        /// Skill name
+        name: String,
+        /// Input values (key=value, can be repeated)
+        #[arg(long, short = 'i', value_name = "KEY=VALUE")]
+        input: Vec<String>,
+        /// Skip write confirmation (only for trusted skills)
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
+    /// Trust a repo-scoped skill for write operations
+    Trust {
+        /// Skill name
+        name: String,
+    },
+    /// Revoke trust for a skill
+    Revoke {
+        /// Skill name
+        name: String,
     },
 }
 

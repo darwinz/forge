@@ -68,6 +68,23 @@ pub struct SkillExecution {
     pub entrypoint: String,
     #[serde(default)]
     pub interpreter: Option<String>,
+    #[serde(default)]
+    pub outputs: Vec<SkillOutput>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SkillOutput {
+    /// Template file name (relative to entrypoint directory)
+    pub template: String,
+    /// Destination path (supports `{{ input_name }}` interpolation)
+    pub destination: String,
+    /// Whether to overwrite existing files (default: true, with preview)
+    #[serde(default = "default_true")]
+    pub overwrite: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// A discovered skill with its filesystem location
