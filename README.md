@@ -1,196 +1,248 @@
-# mycli
+# forge
 
-> ##### Command-line utility for software and devops engineers
+A developer toolkit CLI for bootstrapping, managing, and extending your dev environment. Written in Rust, replacing the previous Bash-based `mycli`.
 
-## Install
+## Why forge exists
 
-Install by cloning and running 
+The original `mycli` was ~16 shell scripts concatenated into a single sourced file. It worked, but had real problems: `curl|bash` installers with no checksums, `StrictHostKeyChecking=no` on every SSH connection, DES3 encryption, plaintext VPN credentials, hardcoded users, and fragile `awk`-based profile mutation.
+
+`forge` is a ground-up rewrite that keeps the useful parts (cheatsheets, system monitoring, package inventories, shell aliases) while dropping the dangerous ones. Security, maintainability, and an AI skills subsystem are first-class priorities — not a line-by-line port.
+
+## Current status
+
+forge is in active development. The read-only foundation is solid and usable today. Installation and mutation features are rolling out incrementally with safety controls.
+
+| Area | Status |
+|------|--------|
+| CLI skeleton, help, subcommand tree | Done |
+| Notes/cheatsheets (28 topics) | Done |
+| System monitoring (read-only) | Done |
+| File search (`find`, `search`, `spotlight`) | Done |
+| Misc (`weather`, `define`) | Done |
+| Shell alias generation | Done |
+| Bundle manifests and registry | Done |
+| Package inventory/status/drift reporting | Done |
+| Environment scan (pipx, uv, pnpm, bun, asdf, mise, bin dirs) | Done |
+| Bootstrap install (brew, brew cask, npm) | Done |
+| Skills subsystem (metadata, discovery, validation) | Done (no execution) |
+| `--dry-run` across all commands | Done |
+| Docker, AWS, Git alias commands | Planned |
+| Shell profile management | Planned |
+| Self-update | Planned |
+| Skill execution / sandbox | Planned |
+
+## Quick start
 
 ```bash
-make install
+# Build from source
+cargo build --release
+
+# Symlink for convenience
+ln -sf $(pwd)/target/release/forge /usr/local/bin/forge
+
+# Explore
+forge --help
+forge notes
+forge system --help
+forge bootstrap --list-bundles
+forge bootstrap --status
 ```
 
-## Usage
+## Installation
+
+Requires Rust 1.84+.
 
 ```bash
-$ mycli [options|command] [arguments]
+git clone <repo-url> && cd my-cli
+cargo build --release
 ```
 
-### Usage Examples
+The binary is at `target/release/forge`. No system-wide install step is required — just put it on your PATH.
+
+## Command overview
+
+### `forge notes [topic]`
+
+Built-in cheatsheets for tools you use but don't memorize. 28 topics covering Kubernetes, Terraform, Helm, Docker, Git, Neovim, Claude Code, Codex, and more.
 
 ```bash
-$ mycli
-$ mycli --help
-$ mycli docker
-$ mycli mysql
-$ mycli aws_connect -a app1 -e dev1
-$ mycli acd_backup
-$ mycli docker_images
-$ mycli cpu_hogs
+forge notes              # List all topics
+forge notes list         # Same
+forge notes k8s          # Kubernetes cheatsheet
+forge notes claude       # Claude Code CLI reference
+forge notes codex        # OpenAI Codex CLI reference
+forge notes nvim         # Your Neovim config keybinds
+forge notes terraform    # Terraform commands
 ```
 
+### `forge system <command>`
 
-### Options / Categories
+Read-only system monitoring. No mutation, no sudo.
 
-> `--help (-h)`
-> `--version (-v)`
-> `environment`
-> `aliases`
-> `aws`
-> `file_operations`
-> `acd`
-> `docker`
-> `elasticsearch`
-> `misc`
-> `mongo`
-> `mysql`
-> `node`
-> `notes`
-> `redis`
-> `ruby`
-> `system`
-> `vpn`
+```bash
+forge system cpu-hogs    # Top CPU consumers
+forge system mem-hogs    # Top memory consumers (top)
+forge system mem-hogs-ps # Top memory consumers (ps)
+forge system hardware    # System hardware info
+forge system ip-info     # Network interface info (en0 default)
+forge system port 8080   # What's using port 8080
+forge system find-pid ssh  # Find PIDs by name
+forge system ps          # Your processes
+forge system net-cons    # Open TCP/IP sockets
+forge system top         # CPU/memory snapshot
+```
 
-### Help / Commands List
+### `forge file <command>`
 
-#### General
+File search commands (read-only subset implemented).
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `get_version`  | Get the current installed mycli version  | |
-| `upgrade`  | Upgrade mycli to the latest version  | |
+```bash
+forge file find "*.toml"       # Find files by name
+forge file search "TODO"       # Recursive grep (excludes .git, node_modules, target)
+forge file spotlight "budget"  # macOS Spotlight search
+```
 
+`extract`, `trash`, `cleanup-ds`, `mkdir-cd` are defined but not yet implemented (require mutation).
 
-#### Environment
+### `forge misc <command>`
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `install_homebrew`  | Get the current installed ccli version  | |
+```bash
+forge misc weather              # Weather for current location
+forge misc weather "New York"   # Weather for a specific location
+forge misc define "ephemeral"   # Dictionary lookup
+```
 
+### `forge bootstrap`
 
-#### AWS
+Declarative package management via TOML bundle manifests.
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `aws_get_instance_ips`  | Prints an unparsed list of EC2 instance IP addresses  | Optional argument $1 'production' for prod info |
-| `aws_get_instance_info -p $aws_profile -q $query`  | Prints an unparsed list of EC2 instances with info  | $aws_profile (-p, --profile) = app, $query (-q, --query) = query or keywords |
-| `aws_ssh $ip $keyname`  | Connects to a specified EC2 instance using a specified keyname  | $1 = IP address, $2 = ssh key name (stored locally in ~/.ssh) |
-| `aws_elb_list_instances -a $app -e $env`  | List EC2 instance attached to an ELB.  No argument for interactive  | $app (-a, --app) = app name, $env (-e, --env, --environment) = environment (dev1, etc.) |
-| `aws_connect -a $app -e $env -s $service -k $keyname -n $instance-num -c $command`  | Makes a SSH connection to an EC2 instance (or sends a command through SSH).  No argument for interactive  | $app (-a, --app) = app name<br><br>$env (-e, --env, --environment) = environment (dev1, etc.)<br><br>$service (-s, --service) (**optional**) = service (if multiple services exist for an app)<br><br>$keyname (-k, --keyname) = name of pem keyfile (stored in ~/.ssh)<br><br>$instance-num (-n, --instance-number) (**optional**) = specific instance number from list (1, 2, etc.)<br><br>$command (-c, --command) (**optional**) = command to run through SSH |
+```bash
+# Discovery
+forge bootstrap --list-bundles          # Show all bundles by tier
+forge bootstrap --status                # Package inventory: installed vs expected
+forge bootstrap --status --format json  # Machine-readable output
+forge bootstrap --scan                  # Scan for tools beyond bundles
 
+# Installation (brew, brew cask, npm)
+forge bootstrap                         # Install default profile bundles
+forge bootstrap --bundles core,go,node  # Install specific bundles
+forge bootstrap --add ai-tools          # Add one bundle
+forge bootstrap --all                   # Install everything
+forge bootstrap --dry-run               # Preview without installing
+forge bootstrap --yes                   # Skip confirmation prompt
+```
 
-#### File Operations
+**Bundle tiers:**
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `trash $1`  | Moves a local file to trash rather than rm'ing that file  | $1 = Filepath |
-| `cdf`  | Change directory to frontmost window of MacOS Finder  | |
-| `extract $1`  | Extract most known archives with one command  | $1 = Filepath |
-| `file_create`  | Create a file that contains random contents with a specified size and filepath (Interactive)  | |
-| `encrypt $1`  | Encrypt a file using a DES3 hash | $1 = Filepath |
-| `decrypt $1`  | Decrypt a file that was encrypted using a DES3 hash | $1 = Filepath |
-| `ff $1`  | Find file under the current working dir | $1 = Search query |
-| `ffs $1`  | Find file whose name starts with {$1} under the current working dir | $1 = Search query |
-| `ffe $1`  | Find file whose name ends with {$1} under the current working dir | $1 = Search query |
+| Tier | Bundles | Behavior |
+|------|---------|----------|
+| Core | `core` | Essential shell tools. Always included. |
+| Role | `go`, `node`, `python`, `ruby`, `devops`, `git` | Opt-in per development stack. |
+| Experimental | `editors`, `ios`, `elixir` | Opt-in. May not apply to every machine. |
+| AI Tools | `ai-tools` | Inventory and recommend. Manual entries show install instructions. |
 
+**What bootstrap handles today:** Homebrew formulae, Homebrew casks, npm global packages. Other sources (go, gem, pipx, etc.) appear in status reports but are not yet auto-installed.
 
-#### Amazon Cloud Drive (ACD)
+**Manual entries** (like `claude`, `firecrawl-cli`) are never auto-installed. Bootstrap reports whether they're detected and shows install instructions.
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `acd_backup [volume/path] [acd_dir]`  | Alias for *git add* | $1 = Local dir path to backup, $2 = Dir path on remote ACD |
-    
-    
-#### Docker
+### `forge skill`
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `docker_host` | Display DOCKER_HOST env var | |
-| `docker_remove_images` | Force remove/destroy all existing local docker images | |
-| `docker_remove_processes` | Force remove/destroy all existing local docker processes | |
-| `docker_images` | Display all existing local docker images | |
-| `docker_processes` | Display all existing local docker processes | |
-| `docker_start_zendserver` | Start up a new local docker instance based on the official zend server docker image | |
-| `docker_eval` | Display docker default environment variables | |
+AI skills subsystem. v1 is metadata and management only — no execution.
 
+```bash
+forge skill list                  # List discovered skills
+forge skill list --tag refactoring  # Filter by tag
+forge skill info <name>           # Full skill metadata
+forge skill validate --all        # Validate all manifests
+forge skill validate <name>       # Validate one skill
+forge skill link ./my-skill       # Symlink for development
+forge skill audit                 # View audit log (empty until execution is added)
+```
 
-#### ElasticSearch
+Skills are discovered from `~/.forge/skills/` (user-global) and `.forge/skills/` (repo-scoped). Each skill has a `skill.toml` manifest defining inputs, permissions, and execution type.
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `install_es` | Install elasticsearch locally | |
-| `es_start` | Start elasticsearch service locally | |
-    
-    
-#### Misc
+### `forge shell generate-aliases`
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `weather [zip code]` | Get the weather for a specified zip code | $1 = zip code |
-| `define [word]` | Define a specified word using collinsdictionary.com | $1 = word to define |
+Outputs a shell alias script to stdout. Pipe or redirect as needed.
 
+```bash
+forge shell generate-aliases              # Print to terminal
+forge shell generate-aliases > aliases.sh # Save to file
+```
 
-#### Mongo
+Includes aliases for ls, kubectl, bundler, SSH, system monitoring, and macOS-specific utilities.
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `mongo_local_start` | Start local mongo | |
-| `mongo_port` | Get the local port mongo is running on | |
+### Not yet implemented
 
+These command groups are defined in the CLI but return placeholder messages:
 
-#### MySQL
+- `forge docker` — Docker utilities (Phase 3)
+- `forge aws` — AWS operations (Phase 5)
+- `forge git` — Git alias management (Phase 3)
 
+## Global options
 
-#### Node
+```
+--dry-run       Preview all commands without executing anything
+-v              Info-level logging
+-vv             Debug-level logging
+-vvv            Trace-level logging
+--config <path> Override config file location
+```
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `node_start [environment]` | Start node server with specified environment config | $1 = node environment |
-    
-    
-#### Notes
+Dry-run is fully supported across all implemented commands, including system queries, bootstrap planning, and file operations. In dry-run mode, bootstrap status reports `[unknown]` instead of `[missing]` since package managers are not queried.
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `notes_screen` | Show info on how to use the screen utility on Linux systems | |
-| `notes_remote_form_post_with_file` | Show info on how to post to a form with file using cURL | |
+## Configuration
 
+Three-layer TOML config: built-in defaults, `~/.forge/config.toml`, CLI flags.
 
-#### Redis
+Bundle manifests live in `config/bundles/*.toml`. Git aliases are declared in `config/git-aliases.toml`. The default bootstrap profile is `config/default-profile.toml`.
 
+## Architecture
 
-#### Ruby
+```
+crates/
+  forge-core/     # Library: all business logic
+    commands/     # notes, system, file_ops, misc, shell_aliases
+    bundles/      # registry, inventory, sources, installer
+    skills/       # metadata, discovery, validation, audit
+    config/       # TOML schema and loading
+    os/           # OsPlatform trait (macOS, Linux)
+    exec/         # CommandRunner trait (real, dry-run)
+  forge-cli/      # Binary: clap args, output formatting, dispatch
+config/
+  bundles/        # TOML bundle manifests
+  default.toml    # Default config
+  git-aliases.toml
+shell/
+  aliases.sh.tmpl # Shell alias template
+```
 
+`forge-core` contains all logic and has no direct I/O — everything goes through `CommandRunner`. `forge-cli` is a thin entry point that parses args, selects the runner (real or dry-run), and formats output.
 
-#### System
+## Development
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `memHogsTop` | Show processes using the most memory using top | |
-| `memHogsPs` | Show processes using the most memory using ps | |
-| `cpu_hogs` | Show processes using the most CPU using ps | |
-| `topForever` | Show running list of processes using top sorted by CPU usage | |
-| `ttop` | Recommended 'top' invocation to minimize resources | |
-| `findPid [search term]` | Find process by name/search term | $1 = search term |
-| `my_ps [search term]` | Find process used by my user | $1 = search term |
-| `netCons` | Show all open TCP/IP sockets | |
-| `lsock` | Display open sockets | |
-| `lsockU` | Display only open UDP sockets | |
-| `lsockT` | Displays only open TCP sockets | |
-| `ipInfo0` | Gets info on connections for en0 | |
-| `ipInfo1` | Gets info on connections for en1 | |
-| `openPorts` | Gets a list of all listening connections | |
-| `usedPort` | Shows information about any files (process) open on a given port | $1 = port |
-| `showBlocked` | Gets all ipfw rules including blocked IPs | |
-| `hardware` | List system hardware | |
-| `cleanupDS` | Delete .DS_Store files from current working directory recursively | |
-| `finderShowHidden` | Changes flag in Finder to show hidden files | |
-| `finderHideHidden` | Changes flag in Finder to hide hidden files | |
-    
-    
-#### VPN
+```bash
+cargo build                    # Build
+cargo test                     # Run all tests (81 tests)
+cargo run --bin forge -- --help  # Run locally
+```
 
-| Command  | Description | Arguments |
-| ------------- | ------------- | ------------- |
-| `vpn_connect` | Opens Cisco AnyConnect client, enters username and password and connects | |
+Tests cover CLI integration (help output, dry-run behavior, notes content, bootstrap planning) and unit tests (parsers for npm, pnpm, pipx, uv, bun, composer, asdf, mise output formats, definition formatting, alias generation).
 
+## Migration from mycli
+
+If you previously used `mycli`, the key differences:
+
+- Binary is `forge`, not `mycli`
+- Commands use subcommand syntax: `forge system cpu-hogs` not `cpu_hogs`
+- Shell aliases are generated, not compiled in: `forge shell generate-aliases`
+- Bundle-based package management replaces imperative install scripts
+- `StrictHostKeyChecking=no` removed entirely — standard SSH defaults apply
+- DES3 encryption removed with no replacement (deferred until a proper design with `age` is ready)
+- VPN credential injection removed (never port)
+- `curl|bash` installers replaced with package manager commands
+
+## License
+
+MIT
