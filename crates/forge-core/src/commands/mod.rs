@@ -7,3 +7,4 @@ pub mod notes;
 pub mod platform;
 pub mod shell_aliases;
 pub mod system;
+pub mod vercel;

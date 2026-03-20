@@ -1087,3 +1087,96 @@ fn test_bootstrap_list_includes_platforms() {
         .success()
         .stdout(predicate::str::contains("platforms"));
 }
+
+// ---------------------------------------------------------------------------
+// Vercel commands
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_vercel_bare_shows_help() {
+    forge()
+        .arg("vercel")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Usage"));
+}
+
+#[test]
+fn test_vercel_help() {
+    forge()
+        .args(["vercel", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("doctor"))
+        .stdout(predicate::str::contains("env-diff"))
+        .stdout(predicate::str::contains("deploy"));
+}
+
+#[test]
+fn test_vercel_doctor() {
+    forge()
+        .args(["vercel", "doctor"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Vercel doctor"));
+}
+
+#[test]
+fn test_vercel_doctor_dry_run() {
+    forge()
+        .args(["--dry-run", "vercel", "doctor"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Vercel doctor"))
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+#[test]
+fn test_vercel_env_diff() {
+    forge()
+        .args(["vercel", "env-diff"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Vercel env diff"));
+}
+
+#[test]
+fn test_vercel_env_diff_dry_run() {
+    forge()
+        .args(["--dry-run", "vercel", "env-diff"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("env diff"))
+        .stdout(predicate::str::contains("not available"));
+}
+
+#[test]
+fn test_vercel_deploy_dry_run() {
+    forge()
+        .args(["--dry-run", "vercel", "deploy"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("vercel deploy"));
+}
+
+#[test]
+fn test_vercel_deploy_prod_dry_run() {
+    forge()
+        .args(["--dry-run", "vercel", "deploy", "--prod"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("--prod"));
+}
+
+#[test]
+fn test_vercel_deploy_has_yes_flag() {
+    forge()
+        .args(["vercel", "deploy", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--yes"))
+        .stdout(predicate::str::contains("-y"))
+        .stdout(predicate::str::contains("--prod"));
+}

@@ -8,7 +8,7 @@ use clap::Parser;
 
 use forge_core::{
     bundles::{installer, ActionKind, BundleInventory, BundleRegistry, EnvironmentScan},
-    commands::{aws, docker, file_ops, git, misc, notes, platform, shell_aliases, system},
+    commands::{aws, docker, file_ops, git, misc, notes, platform, shell_aliases, system, vercel},
     config,
     exec::{CommandRunner, DryRunRunner, RealRunner},
     logging, os,
@@ -88,6 +88,9 @@ fn main() -> Result<()> {
         }
         Commands::Platform { command } => {
             cmd_platform(&printer, &*runner, command)?;
+        }
+        Commands::Vercel { command } => {
+            cmd_vercel(&printer, &*runner, command, cli.dry_run)?;
         }
         Commands::Git { command } => {
             let config_path = resolve_git_aliases_path(&config);
@@ -1112,6 +1115,185 @@ fn cmd_aws(printer: &Printer, runner: &dyn CommandRunner, command: AwsCommands) 
                 printer.dim(&format!("  {} instance(s)", instances.len()));
                 printer
                     .dim("  Use `forge aws ssh --query <name>` to connect to a specific instance.");
+            }
+            printer.newline();
+        }
+    }
+    Ok(())
+}
+
+// --- Vercel ---
+
+fn cmd_vercel(
+    printer: &Printer,
+    runner: &dyn CommandRunner,
+    command: VercelCommands,
+    dry_run: bool,
+) -> Result<()> {
+    match command {
+        VercelCommands::Doctor => {
+            let result = vercel::doctor(runner);
+
+            printer.newline();
+            printer.heading("Vercel doctor:");
+            printer.newline();
+
+            // CLI
+            if result.cli_installed {
+                let ver = result.cli_version.as_deref().unwrap_or("unknown");
+                printer.package_state(&format!("CLI: {ver}"), "installed");
+            } else {
+                printer.package_state("CLI: not installed", "missing");
+            }
+
+            // Auth
+            if result.authenticated {
+                let user = result.auth_user.as_deref().unwrap_or("authenticated");
+                printer.package_state(&format!("Auth: {user}"), "installed");
+            } else if result.cli_installed {
+                printer.package_state("Auth: not logged in", "missing");
+            }
+
+            // Project
+            if result.project_linked {
+                let name = result.project_name.as_deref().unwrap_or("linked");
+                printer.package_state(&format!("Project: {name}"), "installed");
+            } else if result.cli_installed {
+                printer.package_state("Project: not linked", "missing");
+            }
+
+            // Framework
+            if let Some(ref fw) = result.framework {
+                printer.dim(&format!("    Framework: {fw}"));
+            }
+
+            // Issues
+            if !result.issues.is_empty() {
+                printer.newline();
+                printer.bold("  Issues:");
+                for issue in &result.issues {
+                    println!("    {issue}");
+                }
+            }
+
+            // Suggestions
+            if !result.suggestions.is_empty() {
+                printer.newline();
+                printer.bold("  Suggestions:");
+                for suggestion in &result.suggestions {
+                    println!("    {suggestion}");
+                }
+            }
+
+            printer.newline();
+        }
+
+        VercelCommands::EnvDiff => {
+            let diff = vercel::env_diff(runner)?;
+
+            printer.newline();
+            printer.heading("Vercel env diff:");
+            printer.newline();
+            printer.dim(&format!("  Local source: {}", diff.local_source));
+
+            if !diff.remote_available {
+                printer.dim("  Remote: not available (not linked or not logged in)");
+                if !diff.local_only.is_empty() {
+                    printer.newline();
+                    printer.bold(&format!("  Local env vars ({}):", diff.local_only.len()));
+                    for key in &diff.local_only {
+                        println!("    {key}");
+                    }
+                }
+                printer.newline();
+                printer.dim("  Run `vercel link` and `vercel login` to enable remote comparison.");
+                printer.newline();
+                return Ok(());
+            }
+
+            // Full diff
+            if !diff.both.is_empty() {
+                printer.newline();
+                printer.bold(&format!(
+                    "  In both local and remote ({}):",
+                    diff.both.len()
+                ));
+                for key in &diff.both {
+                    println!("    {key}");
+                }
+            }
+
+            if !diff.local_only.is_empty() {
+                printer.newline();
+                printer.bold(&format!(
+                    "  Local only — not in Vercel ({}):",
+                    diff.local_only.len()
+                ));
+                for key in &diff.local_only {
+                    println!("    + {key}");
+                }
+            }
+
+            if !diff.remote_only.is_empty() {
+                printer.newline();
+                printer.bold(&format!(
+                    "  Remote only — not in local .env ({}):",
+                    diff.remote_only.len()
+                ));
+                for key in &diff.remote_only {
+                    println!("    - {key}");
+                }
+            }
+
+            if diff.local_only.is_empty() && diff.remote_only.is_empty() {
+                printer.newline();
+                printer.success("  All env var keys match between local and remote.");
+            }
+
+            printer.newline();
+        }
+
+        VercelCommands::Deploy { prod, yes } => {
+            let target = if prod { "production" } else { "preview" };
+
+            printer.newline();
+            printer.heading(&format!("Vercel deploy ({target}):"));
+            printer.newline();
+
+            // Pre-flight: check project is linked
+            if !dry_run && !std::path::Path::new(".vercel/project.json").exists() {
+                printer.error("Not linked to a Vercel project.");
+                printer.dim("  Run: vercel link");
+                printer.newline();
+                return Ok(());
+            }
+
+            if dry_run {
+                let args = vercel::deploy_args(prod);
+                printer.dim(&format!(
+                    "[dry-run] Would execute: vercel {}",
+                    args.join(" ")
+                ));
+                printer.newline();
+                return Ok(());
+            }
+
+            if !yes && !confirm_destructive(printer, &format!("Deploy to {target}?"))? {
+                printer.dim("Aborted.");
+                printer.newline();
+                return Ok(());
+            }
+
+            printer.dim(&format!("  Deploying to {target}..."));
+            printer.newline();
+
+            match vercel::deploy(runner, prod) {
+                Ok(url) => {
+                    printer.success(&format!("  Deployed: {url}"));
+                }
+                Err(e) => {
+                    printer.error(&format!("  Deploy failed: {e}"));
+                }
             }
             printer.newline();
         }

@@ -32,7 +32,7 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Platform CLIs bundle (Vercel, Supabase, Netlify, Render, Appwrite) | Done |
 | Platform notes (vercel, supabase, netlify, render, appwrite) | Done |
 | Platform diagnostics (`forge platform doctor/status`) | Done |
-| `forge vercel` command group (deploy, env-diff) | Planned |
+| `forge vercel` command group (doctor, env-diff, deploy) | Done |
 | `forge supabase` command group (reset, schema diff) | Planned |
 | Shell profile management | Planned |
 | Self-update | Planned |
@@ -282,6 +282,29 @@ All platforms are also available as notes topics: `forge notes vercel`, `forge n
 
 **Bundle:** `forge bootstrap --add platforms` installs all five CLIs.
 
+### `forge vercel <command>`
+
+Vercel-specific workflows beyond what the generic platform doctor provides.
+
+```bash
+forge vercel doctor             # Deep Vercel health check (CLI, auth, project, framework, .gitignore)
+forge vercel env-diff           # Compare local .env files against Vercel remote env vars
+forge vercel deploy             # Deploy to preview (with confirmation)
+forge vercel deploy --prod      # Deploy to production (with confirmation)
+forge vercel deploy --prod -y   # Skip confirmation
+```
+
+**`forge vercel doctor`** checks:
+- CLI installed and version
+- Auth state (via `vercel whoami`)
+- Project link (`.vercel/project.json`)
+- Framework detection (Next.js, Vite, Nuxt, SvelteKit, Astro, Remix)
+- `.gitignore` coverage for `.env*` and `.vercel/`
+
+**`forge vercel env-diff`** reads local `.env.local`, `.env`, `.env.development`, `.env.development.local` and compares variable names against `vercel env ls`. Shows local-only, remote-only, and shared keys. Never displays secret values.
+
+**`forge vercel deploy`** requires confirmation before deploying. Pre-checks that the project is linked. Supports `--dry-run`.
+
 ### Not yet implemented
 
 These features are planned but not yet available:
@@ -309,7 +332,7 @@ Bundle manifests live in `config/bundles/*.toml`. Git aliases are declared in `c
 ```
 crates/
   forge-core/     # Library: all business logic
-    commands/     # notes, system, file_ops, misc, shell_aliases, docker, git, aws
+    commands/     # notes, system, file_ops, misc, shell_aliases, docker, git, aws, platform, vercel
     bundles/      # registry, inventory, sources, installer
     skills/       # metadata, discovery, validation, audit
     config/       # TOML schema and loading
@@ -330,7 +353,7 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (180 tests)
+cargo test                     # Run all tests (199 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 

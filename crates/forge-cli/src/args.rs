@@ -74,6 +74,13 @@ pub enum Commands {
         command: PlatformCommands,
     },
 
+    /// Vercel workflows — doctor, env-diff, deploy
+    #[command(arg_required_else_help = true)]
+    Vercel {
+        #[command(subcommand)]
+        command: VercelCommands,
+    },
+
     /// Miscellaneous utilities
     #[command(arg_required_else_help = true)]
     Misc {
@@ -297,6 +304,23 @@ pub enum PlatformCommands {
     Doctor,
     /// Show which platform CLIs are installed and their versions
     Status,
+}
+
+#[derive(Subcommand)]
+pub enum VercelCommands {
+    /// Check Vercel CLI installation, auth, project link, and framework detection
+    Doctor,
+    /// Compare local .env files against Vercel environment variables
+    EnvDiff,
+    /// Deploy to Vercel (requires confirmation)
+    Deploy {
+        /// Deploy to production (default is preview)
+        #[arg(long)]
+        prod: bool,
+        /// Skip confirmation prompt
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
 }
 
 #[derive(Subcommand)]
