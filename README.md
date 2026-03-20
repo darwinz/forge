@@ -29,6 +29,10 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Docker utilities (host, images, ps, rm with guards) | Done |
 | Git alias management (declarative TOML config) | Done |
 | AWS commands (instances, SSH, load balancer connect) | Done |
+| Platform CLIs bundle (Vercel, Supabase, Netlify, Render, Appwrite) | Planned |
+| Platform notes/cheatsheets (vercel, supabase, netlify, render, appwrite) | Planned |
+| `forge vercel` command group (status, doctor, deploy, env-diff) | Planned |
+| `forge supabase` command group (status, doctor, reset) | Planned |
 | Shell profile management | Planned |
 | Self-update | Planned |
 | Skill execution / sandbox | Planned |
