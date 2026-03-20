@@ -430,7 +430,15 @@ pub enum SkillCommands {
         /// Filter by skill name
         #[arg(long)]
         skill: Option<String>,
+        /// Filter by action (run, dry-run, rejected, denied)
+        #[arg(long)]
+        action: Option<String>,
+        /// Show only the last N entries
+        #[arg(long, default_value = "20")]
+        last: usize,
     },
+    /// Check skills health: validation, trust status, execution support
+    Doctor,
     /// Execute a template skill
     Run {
         /// Skill name

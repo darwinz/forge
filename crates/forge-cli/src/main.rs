@@ -785,24 +785,152 @@ fn cmd_skill(
             printer.dim("Skill linking requires creating directories (Phase 2+).");
         }
 
-        SkillCommands::Audit { skill: _ } => {
+        SkillCommands::Audit {
+            skill: skill_filter,
+            action,
+            last,
+        } => {
             let audit_path = resolve_skills_dir(&config.skills.audit_log);
-            let records = audit::read_audit_log(&audit_path);
+            let mut records = audit::read_audit_log(&audit_path);
+
+            if let Some(ref name) = skill_filter {
+                records = audit::filter_by_skill(&records, name);
+            }
+            if let Some(ref act) = action {
+                records = audit::filter_by_action(&records, act);
+            }
+            records = audit::last_n(&records, last);
+
+            printer.newline();
+            printer.heading("Skill audit log:");
+            printer.newline();
 
             if records.is_empty() {
-                printer.dim("No audit records found.");
+                printer.dim("  No audit records found.");
+                if skill_filter.is_some() || action.is_some() {
+                    printer.dim("  Try removing filters to see all records.");
+                }
             } else {
                 for record in &records {
-                    println!(
-                        "  {} {} v{} — {} ({}ms)",
-                        record.timestamp,
-                        record.skill_name,
-                        record.skill_version,
-                        record.action,
-                        record.duration_ms,
-                    );
+                    printer.print(&audit::format_record(record));
+                    printer.newline();
+                }
+                printer.dim(&format!("  {} record(s) shown", records.len()));
+            }
+            printer.newline();
+        }
+
+        SkillCommands::Doctor => {
+            let skills = discovery::discover_skills(user_dir, repo_dir)?;
+            let trust_path = resolve_skills_dir("~/.forge/trust.toml");
+            let trust_store = execution::TrustStore::load(&trust_path);
+
+            printer.newline();
+            printer.heading("Skill doctor:");
+            printer.newline();
+
+            if skills.is_empty() {
+                printer.dim("  No skills discovered.");
+                printer.dim(&format!("  User dir: {}", user_dir.display()));
+                if let Some(rd) = repo_dir {
+                    printer.dim(&format!("  Repo dir: {}", rd.display()));
+                }
+                printer.newline();
+                return Ok(());
+            }
+
+            for skill in &skills {
+                let name = &skill.manifest.skill.name;
+                let version = &skill.manifest.skill.version;
+
+                // Validation
+                let validation = validation::validate_skill(skill);
+
+                // Execution type check
+                let exec_supported = execution::check_execution_type(skill).is_ok();
+                let perms_supported = execution::check_permissions_v1(skill).is_ok();
+                let runnable = validation.is_valid() && exec_supported && perms_supported;
+
+                // Trust status
+                let trust_status = execution::check_trust(skill, &trust_store).unwrap_or(
+                    execution::TrustStatus::NeedsApproval {
+                        hash: String::new(),
+                    },
+                );
+
+                // Display
+                let source_label = skill.source.to_string();
+                if runnable {
+                    printer
+                        .package_state(&format!("{name} v{version} [{source_label}]"), "installed");
+                } else {
+                    printer
+                        .package_state(&format!("{name} v{version} [{source_label}]"), "missing");
+                }
+
+                // Execution type
+                if let Some(ref exec) = skill.manifest.skill.execution {
+                    let type_label = match exec.exec_type.as_str() {
+                        "template" | "transform" => {
+                            format!("    type: {} (supported)", exec.exec_type)
+                        }
+                        other => format!("    type: {other} (not supported in v1)"),
+                    };
+                    printer.dim(&type_label);
+                } else {
+                    printer.dim("    type: none (no execution section)");
+                }
+
+                // Permissions
+                if let Some(ref perms) = skill.manifest.skill.permissions {
+                    if perms.execute_commands {
+                        printer.warning("    execute_commands: true (not supported in v1)");
+                    }
+                    if perms.network {
+                        printer.warning("    network: true (not supported in v1)");
+                    }
+                }
+
+                // Trust
+                match trust_status {
+                    execution::TrustStatus::Trusted => {
+                        printer.dim("    trust: trusted");
+                    }
+                    execution::TrustStatus::NeedsApproval { .. } => {
+                        printer.dim("    trust: needs approval (first run)");
+                    }
+                    execution::TrustStatus::UntrustedRepo { .. } => {
+                        printer.warning(&format!(
+                            "    trust: untrusted (repo-scoped, run `forge skill trust {name}`)"
+                        ));
+                    }
+                }
+
+                // Validation errors/warnings
+                for err in &validation.errors {
+                    printer.error(&format!("    error: {err}"));
+                }
+                for warn in &validation.warnings {
+                    printer.dim(&format!("    warning: {warn}"));
                 }
             }
+
+            printer.newline();
+            let runnable_count = skills
+                .iter()
+                .filter(|s| {
+                    let v = validation::validate_skill(s);
+                    v.is_valid()
+                        && execution::check_execution_type(s).is_ok()
+                        && execution::check_permissions_v1(s).is_ok()
+                })
+                .count();
+            printer.dim(&format!(
+                "  {}/{} skill(s) runnable in v1",
+                runnable_count,
+                skills.len()
+            ));
+            printer.newline();
         }
 
         SkillCommands::Run { name, input, yes } => {

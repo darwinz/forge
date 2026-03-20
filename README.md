@@ -398,7 +398,7 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (279 tests)
+cargo test                     # Run all tests (293 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 

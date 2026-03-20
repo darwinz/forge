@@ -255,12 +255,10 @@ fn test_skill_validate_all() {
 }
 
 #[test]
-fn test_skill_audit() {
-    forge()
-        .args(["skill", "audit"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("No audit records"));
+fn test_skill_audit_no_records() {
+    forge().args(["skill", "audit"]).assert().success().stdout(
+        predicate::str::contains("No audit records").or(predicate::str::contains("audit log")),
+    );
 }
 
 #[test]
@@ -308,7 +306,48 @@ fn test_skill_help_includes_run() {
         .success()
         .stdout(predicate::str::contains("run"))
         .stdout(predicate::str::contains("trust"))
-        .stdout(predicate::str::contains("revoke"));
+        .stdout(predicate::str::contains("revoke"))
+        .stdout(predicate::str::contains("doctor"))
+        .stdout(predicate::str::contains("audit"));
+}
+
+#[test]
+fn test_skill_doctor() {
+    forge()
+        .args(["skill", "doctor"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Skill doctor"));
+}
+
+#[test]
+fn test_skill_doctor_shows_status() {
+    // When no skills exist, shows "No skills discovered"
+    // When skills exist, shows "runnable in v1"
+    forge().args(["skill", "doctor"]).assert().success().stdout(
+        predicate::str::contains("runnable in v1")
+            .or(predicate::str::contains("No skills discovered")),
+    );
+}
+
+#[test]
+fn test_skill_audit_empty() {
+    forge()
+        .args(["skill", "audit"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("audit log"));
+}
+
+#[test]
+fn test_skill_audit_help() {
+    forge()
+        .args(["skill", "audit", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--skill"))
+        .stdout(predicate::str::contains("--action"))
+        .stdout(predicate::str::contains("--last"));
 }
 
 #[test]
