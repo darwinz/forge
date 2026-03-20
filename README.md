@@ -34,7 +34,10 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Platform diagnostics (`forge platform doctor/status`) | Done |
 | `forge vercel` command group (doctor, env-diff, status, deploy) | Done |
 | Terminal UX polish (TTY, dialoguer, notes rendering, clap styles) | Done |
-| Skill execution / sandbox | Planned |
+| Skill execution design (trust, permissions, sandboxing model) | Done (design) |
+| Skill execution v1 — template skills | Planned |
+| Skill execution v2 — transforms, trust persistence, audit | Planned |
+| Skill execution v3 — script/binary execution (requires sandboxing) | Planned |
 | `forge supabase` command group (doctor, migration-status, services, reset) | Done |
 | `forge netlify` command group (doctor, env-diff) | Done |
 | Shell profile management | Planned |
