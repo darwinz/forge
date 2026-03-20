@@ -1,0 +1,22 @@
+[package]
+name = "forge-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "CLI binary for the forge developer toolkit"
+
+[[bin]]
+name = "forge"
+path = "src/main.rs"
+
+[dependencies]
+forge-core = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+console = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = ">=2, <2.1"
+predicates = "3"
