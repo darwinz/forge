@@ -102,6 +102,13 @@ pub enum Commands {
         command: SupabaseCommands,
     },
 
+    /// Netlify workflows — doctor, env-diff
+    #[command(arg_required_else_help = true)]
+    Netlify {
+        #[command(subcommand)]
+        command: NetlifyCommands,
+    },
+
     /// Miscellaneous utilities
     #[command(arg_required_else_help = true)]
     Misc {
@@ -333,6 +340,8 @@ pub enum VercelCommands {
     Doctor,
     /// Compare local .env files against Vercel environment variables
     EnvDiff,
+    /// Show latest deployment status
+    Status,
     /// Deploy to Vercel (requires confirmation)
     Deploy {
         /// Deploy to production (default is preview)
@@ -350,12 +359,22 @@ pub enum SupabaseCommands {
     Doctor,
     /// Show local migration files and remote migration status
     MigrationStatus,
+    /// Show local Supabase service URLs and status
+    Services,
     /// Reset local database to clean state (requires confirmation)
     Reset {
         /// Skip confirmation prompt
         #[arg(long, short = 'y')]
         yes: bool,
     },
+}
+
+#[derive(Subcommand)]
+pub enum NetlifyCommands {
+    /// Check Netlify CLI installation, auth, and site link status
+    Doctor,
+    /// Compare local .env files against Netlify environment variables
+    EnvDiff,
 }
 
 #[derive(Subcommand)]

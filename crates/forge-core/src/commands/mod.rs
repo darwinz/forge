@@ -3,6 +3,7 @@ pub mod docker;
 pub mod file_ops;
 pub mod git;
 pub mod misc;
+pub mod netlify;
 pub mod notes;
 pub mod platform;
 pub mod shell_aliases;

@@ -9,7 +9,8 @@ use clap::Parser;
 use forge_core::{
     bundles::{installer, ActionKind, BundleInventory, BundleRegistry, EnvironmentScan},
     commands::{
-        aws, docker, file_ops, git, misc, notes, platform, shell_aliases, supabase, system, vercel,
+        aws, docker, file_ops, git, misc, netlify, notes, platform, shell_aliases, supabase,
+        system, vercel,
     },
     config,
     exec::{CommandRunner, DryRunRunner, RealRunner},
@@ -96,6 +97,9 @@ fn main() -> Result<()> {
         }
         Commands::Supabase { command } => {
             cmd_supabase(&printer, &*runner, command, cli.dry_run)?;
+        }
+        Commands::Netlify { command } => {
+            cmd_netlify(&printer, &*runner, command)?;
         }
         Commands::Git { command } => {
             let config_path = resolve_git_aliases_path(&config);
@@ -1234,6 +1238,32 @@ fn cmd_supabase(
             printer.newline();
         }
 
+        SupabaseCommands::Services => {
+            printer.newline();
+            printer.heading("Supabase local services:");
+            printer.newline();
+
+            match supabase::services(runner) {
+                Ok(output) if !output.is_empty() => {
+                    for line in output.lines() {
+                        println!("  {line}");
+                    }
+                }
+                Ok(_) => {
+                    if runner.is_dry_run() {
+                        printer.dim("  [dry-run] Service status not checked.");
+                    } else {
+                        printer.dim("  No service information available.");
+                    }
+                }
+                Err(e) => {
+                    printer.error(&format!("  {e}"));
+                    printer.dim("  Ensure Docker is running and `supabase start` has been run.");
+                }
+            }
+            printer.newline();
+        }
+
         SupabaseCommands::Reset { yes } => {
             printer.newline();
             printer.heading("Supabase local database reset:");
@@ -1267,6 +1297,142 @@ fn cmd_supabase(
                     printer.error(&format!("  Reset failed: {e}"));
                 }
             }
+            printer.newline();
+        }
+    }
+    Ok(())
+}
+
+// --- Netlify ---
+
+fn cmd_netlify(
+    printer: &Printer,
+    runner: &dyn CommandRunner,
+    command: NetlifyCommands,
+) -> Result<()> {
+    match command {
+        NetlifyCommands::Doctor => {
+            let result = netlify::doctor(runner);
+
+            printer.newline();
+            printer.heading("Netlify doctor:");
+            printer.newline();
+
+            // CLI
+            if result.cli_installed {
+                let ver = result.cli_version.as_deref().unwrap_or("unknown");
+                printer.package_state(&format!("CLI: {ver}"), "installed");
+            } else {
+                printer.package_state("CLI: not installed", "missing");
+                if !result.suggestions.is_empty() {
+                    printer.newline();
+                    for s in &result.suggestions {
+                        printer.dim(&format!("    {s}"));
+                    }
+                }
+                printer.newline();
+                return Ok(());
+            }
+
+            // Auth
+            if result.authenticated {
+                let user = result.auth_user.as_deref().unwrap_or("authenticated");
+                printer.package_state(&format!("Auth: {user}"), "installed");
+            } else if result.cli_installed {
+                printer.package_state("Auth: not logged in", "missing");
+            }
+
+            // Site link
+            if result.site_linked {
+                let name = result.site_name.as_deref().unwrap_or("linked");
+                printer.package_state(&format!("Site: {name}"), "installed");
+            } else if result.cli_installed {
+                printer.package_state("Site: not linked", "missing");
+            }
+
+            // Issues
+            if !result.issues.is_empty() {
+                printer.newline();
+                printer.bold("  Issues:");
+                for issue in &result.issues {
+                    println!("    {issue}");
+                }
+            }
+
+            // Suggestions
+            if !result.suggestions.is_empty() {
+                printer.newline();
+                printer.bold("  Suggestions:");
+                for suggestion in &result.suggestions {
+                    println!("    {suggestion}");
+                }
+            }
+
+            printer.newline();
+        }
+
+        NetlifyCommands::EnvDiff => {
+            let diff = netlify::env_diff(runner)?;
+
+            printer.newline();
+            printer.heading("Netlify env diff:");
+            printer.newline();
+            printer.dim(&format!("  Local source: {}", diff.local_source));
+
+            if !diff.remote_available {
+                printer.dim("  Remote: not available (not linked or not logged in)");
+                if !diff.local_only.is_empty() {
+                    printer.newline();
+                    printer.bold(&format!("  Local env vars ({}):", diff.local_only.len()));
+                    for key in &diff.local_only {
+                        println!("    {key}");
+                    }
+                }
+                printer.newline();
+                printer
+                    .dim("  Run `netlify link` and `netlify login` to enable remote comparison.");
+                printer.newline();
+                return Ok(());
+            }
+
+            if !diff.both.is_empty() {
+                printer.newline();
+                printer.bold(&format!(
+                    "  In both local and remote ({}):",
+                    diff.both.len()
+                ));
+                for key in &diff.both {
+                    println!("    {key}");
+                }
+            }
+
+            if !diff.local_only.is_empty() {
+                printer.newline();
+                printer.bold(&format!(
+                    "  Local only — not in Netlify ({}):",
+                    diff.local_only.len()
+                ));
+                for key in &diff.local_only {
+                    println!("    + {key}");
+                }
+            }
+
+            if !diff.remote_only.is_empty() {
+                printer.newline();
+                printer.bold(&format!(
+                    "  Remote only — not in local .env ({}):",
+                    diff.remote_only.len()
+                ));
+                for key in &diff.remote_only {
+                    println!("    - {key}");
+                }
+            }
+
+            if diff.local_only.is_empty() && diff.remote_only.is_empty() {
+                printer.newline();
+                printer.success("  All env var keys match between local and remote.");
+            }
+
             printer.newline();
         }
     }
@@ -1336,6 +1502,31 @@ fn cmd_vercel(
                 }
             }
 
+            printer.newline();
+        }
+
+        VercelCommands::Status => {
+            let result = vercel::status(runner)?;
+
+            printer.newline();
+            printer.heading("Vercel deployments:");
+            printer.newline();
+
+            if !result.available {
+                if runner.is_dry_run() {
+                    printer.dim("  [dry-run] Deployment status not checked.");
+                } else {
+                    printer.dim("  Could not list deployments.");
+                    printer
+                        .dim("  Ensure you are logged in (vercel login) and linked (vercel link).");
+                }
+            } else if result.output.trim().is_empty() {
+                printer.dim("  No deployments found.");
+            } else {
+                for line in result.output.lines() {
+                    println!("  {line}");
+                }
+            }
             printer.newline();
         }
 

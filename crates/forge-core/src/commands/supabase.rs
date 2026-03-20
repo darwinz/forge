@@ -269,6 +269,36 @@ pub fn reset_local_db(runner: &dyn CommandRunner) -> ForgeResult<String> {
 }
 
 // ---------------------------------------------------------------------------
+// Services (local stack details)
+// ---------------------------------------------------------------------------
+
+/// Get local Supabase service details via `supabase status`.
+pub fn services(runner: &dyn CommandRunner) -> ForgeResult<String> {
+    if !runner.is_dry_run() && !Path::new("supabase/config.toml").exists() {
+        return Err(ForgeError::CommandFailed(
+            "No Supabase project found. Run `supabase init` first.".to_string(),
+        ));
+    }
+
+    let output = runner.run("supabase", &["status"])?;
+
+    if runner.is_dry_run() {
+        return Ok(String::new());
+    }
+
+    if output.success() {
+        Ok(output.stdout)
+    } else {
+        let msg = output
+            .stderr
+            .lines()
+            .next()
+            .unwrap_or("could not get status");
+        Err(ForgeError::CommandFailed(msg.to_string()))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -350,6 +380,14 @@ mod tests {
         use crate::exec::DryRunRunner;
         let runner = DryRunRunner;
         let result = remote_migration_status(&runner).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_services_dry_run() {
+        use crate::exec::DryRunRunner;
+        let runner = DryRunRunner;
+        let result = services(&runner).unwrap();
         assert!(result.is_empty());
     }
 }

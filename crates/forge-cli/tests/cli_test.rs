@@ -1262,3 +1262,116 @@ fn test_supabase_reset_has_yes_flag() {
         .stdout(predicate::str::contains("--yes"))
         .stdout(predicate::str::contains("-y"));
 }
+
+#[test]
+fn test_supabase_services_help() {
+    forge()
+        .args(["supabase", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("services"));
+}
+
+#[test]
+fn test_supabase_services_dry_run() {
+    forge()
+        .args(["--dry-run", "supabase", "services"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+// ---------------------------------------------------------------------------
+// Vercel — status command
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_vercel_status() {
+    forge()
+        .args(["vercel", "status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Vercel deployments"));
+}
+
+#[test]
+fn test_vercel_status_dry_run() {
+    forge()
+        .args(["--dry-run", "vercel", "status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+#[test]
+fn test_vercel_help_includes_status() {
+    forge()
+        .args(["vercel", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("status"))
+        .stdout(predicate::str::contains("doctor"))
+        .stdout(predicate::str::contains("env-diff"))
+        .stdout(predicate::str::contains("deploy"));
+}
+
+// ---------------------------------------------------------------------------
+// Netlify commands
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_netlify_bare_shows_help() {
+    forge()
+        .arg("netlify")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Usage"));
+}
+
+#[test]
+fn test_netlify_help() {
+    forge()
+        .args(["netlify", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("doctor"))
+        .stdout(predicate::str::contains("env-diff"));
+}
+
+#[test]
+fn test_netlify_doctor() {
+    forge()
+        .args(["netlify", "doctor"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Netlify doctor"));
+}
+
+#[test]
+fn test_netlify_doctor_dry_run() {
+    forge()
+        .args(["--dry-run", "netlify", "doctor"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Netlify doctor"))
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+#[test]
+fn test_netlify_env_diff() {
+    forge()
+        .args(["netlify", "env-diff"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Netlify env diff"));
+}
+
+#[test]
+fn test_netlify_env_diff_dry_run() {
+    forge()
+        .args(["--dry-run", "netlify", "env-diff"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("env diff"))
+        .stdout(predicate::str::contains("not available"));
+}

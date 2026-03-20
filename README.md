@@ -32,10 +32,11 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Platform CLIs bundle (Vercel, Supabase, Netlify, Render, Appwrite) | Done |
 | Platform notes (vercel, supabase, netlify, render, appwrite) | Done |
 | Platform diagnostics (`forge platform doctor/status`) | Done |
-| `forge vercel` command group (doctor, env-diff, deploy) | Done |
+| `forge vercel` command group (doctor, env-diff, status, deploy) | Done |
 | Terminal UX polish (TTY, dialoguer, notes rendering, clap styles) | Done |
 | Skill execution / sandbox | Planned |
-| `forge supabase` command group (doctor, migration-status, reset) | Done |
+| `forge supabase` command group (doctor, migration-status, services, reset) | Done |
+| `forge netlify` command group (doctor, env-diff) | Done |
 | Shell profile management | Planned |
 | Self-update | Planned |
 
@@ -290,6 +291,7 @@ Vercel-specific workflows beyond what the generic platform doctor provides.
 ```bash
 forge vercel doctor             # Deep Vercel health check (CLI, auth, project, framework, .gitignore)
 forge vercel env-diff           # Compare local .env files against Vercel remote env vars
+forge vercel status             # Show latest deployments
 forge vercel deploy             # Deploy to preview (with confirmation)
 forge vercel deploy --prod      # Deploy to production (with confirmation)
 forge vercel deploy --prod -y   # Skip confirmation
@@ -313,6 +315,7 @@ Supabase-specific workflows for local development and migration management.
 ```bash
 forge supabase doctor                # Check CLI, Docker, project init/link, local stack, migrations
 forge supabase migration-status      # Show local migration files and remote migration state
+forge supabase services              # Show local service URLs and status
 forge supabase reset                 # Reset local database (with confirmation)
 forge supabase reset --yes           # Skip confirmation
 ```
@@ -327,7 +330,22 @@ forge supabase reset --yes           # Skip confirmation
 
 **`forge supabase migration-status`** shows local migration files (from `supabase/migrations/`) and remote migration state via `supabase migration list`. Useful for detecting drift between local and remote schemas.
 
+**`forge supabase services`** shows local Supabase service URLs and status via `supabase status`. Useful for quickly finding API URL, DB URL, Studio URL, etc.
+
 **`forge supabase reset`** wraps `supabase db reset` with explicit confirmation. Destroys all local database data and recreates from migrations. Requires `--yes` to skip the prompt. Supports `--dry-run`.
+
+### `forge netlify <command>`
+
+Netlify-specific diagnostics and environment comparison.
+
+```bash
+forge netlify doctor            # Check CLI, auth, site link status
+forge netlify env-diff          # Compare local .env files against Netlify env vars
+```
+
+**`forge netlify doctor`** checks CLI installation, auth state (via `netlify status`), and site link (via `.netlify/state.json` or `netlify status` output).
+
+**`forge netlify env-diff`** reads local `.env` files and compares variable names against `netlify env:list`. Shows local-only, remote-only, and shared keys. Never displays secret values.
 
 ### Not yet implemented
 
@@ -356,7 +374,7 @@ Bundle manifests live in `config/bundles/*.toml`. Git aliases are declared in `c
 ```
 crates/
   forge-core/     # Library: all business logic
-    commands/     # notes, system, file_ops, misc, shell_aliases, docker, git, aws, platform, vercel, supabase
+    commands/     # notes, system, file_ops, misc, shell_aliases, docker, git, aws, platform, vercel, supabase, netlify
     bundles/      # registry, inventory, sources, installer
     skills/       # metadata, discovery, validation, audit
     config/       # TOML schema and loading
@@ -377,7 +395,7 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (215 tests)
+cargo test                     # Run all tests (233 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 

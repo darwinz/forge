@@ -359,6 +359,46 @@ pub fn deploy(runner: &dyn CommandRunner, prod: bool) -> ForgeResult<String> {
 }
 
 // ---------------------------------------------------------------------------
+// Status (latest deployment)
+// ---------------------------------------------------------------------------
+
+/// Result of checking deployment status.
+#[derive(Debug)]
+pub struct VercelStatusResult {
+    pub available: bool,
+    pub output: String,
+}
+
+/// Get latest deployment status via `vercel ls`.
+pub fn status(runner: &dyn CommandRunner) -> ForgeResult<VercelStatusResult> {
+    let output = runner.run("vercel", &["ls", "--limit", "5"])?;
+
+    if runner.is_dry_run() {
+        return Ok(VercelStatusResult {
+            available: false,
+            output: String::new(),
+        });
+    }
+
+    if output.success() {
+        Ok(VercelStatusResult {
+            available: true,
+            output: output.stdout,
+        })
+    } else {
+        let msg = output
+            .stderr
+            .lines()
+            .next()
+            .unwrap_or("could not list deployments");
+        Ok(VercelStatusResult {
+            available: false,
+            output: msg.to_string(),
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -464,5 +504,13 @@ A  one-char-name
         let runner = DryRunRunner;
         let result = env_diff(&runner).unwrap();
         assert!(!result.remote_available);
+    }
+
+    #[test]
+    fn test_status_dry_run() {
+        use crate::exec::DryRunRunner;
+        let runner = DryRunRunner;
+        let result = status(&runner).unwrap();
+        assert!(!result.available);
     }
 }
