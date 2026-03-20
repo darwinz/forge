@@ -1,0 +1,54 @@
+[skill]
+name = "add-gitignore-entries"
+version = "1.0.0"
+description = "Add common ignore patterns to .gitignore (safe, skips duplicates)"
+author = "forge-examples"
+
+[skill.metadata]
+tags = ["transform", "git", "config"]
+category = "project-config"
+
+[skill.permissions]
+read_files = true
+write_files = true
+network = false
+execute_commands = false
+max_file_size_bytes = 65536
+timeout_seconds = 10
+
+[skill.execution]
+type = "transform"
+entrypoint = "."
+
+[[skill.execution.transforms]]
+file = ".gitignore"
+operation = "line_append"
+skip_duplicates = true
+lines = [
+  "",
+  "# Environment",
+  ".env",
+  ".env.local",
+  ".env*.local",
+  "",
+  "# Dependencies",
+  "node_modules/",
+  ".pnpm-store/",
+  "",
+  "# Build output",
+  "dist/",
+  "build/",
+  ".next/",
+  "target/",
+  "",
+  "# IDE / OS",
+  ".DS_Store",
+  ".idea/",
+  ".vscode/",
+  "*.swp",
+  "*.swo",
+  "",
+  "# Platform",
+  ".vercel/",
+  ".netlify/",
+]

@@ -1,0 +1,46 @@
+[skill]
+name = "scaffold-api"
+version = "1.0.0"
+description = "Generate a REST API route handler with types and tests"
+author = "forge-examples"
+
+[skill.metadata]
+tags = ["scaffold", "api", "typescript"]
+category = "code-generation"
+
+[skill.inputs.name]
+type = "string"
+required = true
+description = "Resource name (e.g. users, posts, comments)"
+
+[skill.inputs.method]
+type = "string"
+required = false
+description = "HTTP method (default: GET)"
+
+[skill.permissions]
+read_files = false
+write_files = true
+network = false
+execute_commands = false
+max_file_size_bytes = 65536
+timeout_seconds = 10
+
+[skill.execution]
+type = "template"
+entrypoint = "templates/"
+
+[[skill.execution.outputs]]
+template = "route.ts.tmpl"
+destination = "src/api/{{ name }}/route.ts"
+overwrite = false
+
+[[skill.execution.outputs]]
+template = "types.ts.tmpl"
+destination = "src/api/{{ name }}/types.ts"
+overwrite = false
+
+[[skill.execution.outputs]]
+template = "route.test.ts.tmpl"
+destination = "src/api/{{ name }}/route.test.ts"
+overwrite = false

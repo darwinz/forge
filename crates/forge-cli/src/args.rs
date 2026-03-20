@@ -149,6 +149,26 @@ pub enum Commands {
         /// Skip confirmation prompt (non-interactive)
         #[arg(long, short = 'y')]
         yes: bool,
+
+        /// Add a package to a bundle manifest (use with --source and --to-bundle)
+        #[arg(long)]
+        add_package: Option<String>,
+
+        /// Package source: brew, cask, npm, go, gem, uv, manual
+        #[arg(long, default_value = "brew")]
+        source: String,
+
+        /// Target bundle name (default: core)
+        #[arg(long, default_value = "core")]
+        to_bundle: String,
+
+        /// Manual install instructions (for --source manual)
+        #[arg(long)]
+        instructions: Option<String>,
+
+        /// Manual check command (for --source manual)
+        #[arg(long)]
+        check_command: Option<String>,
     },
 
     /// AI skill management and execution

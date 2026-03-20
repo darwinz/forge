@@ -1,0 +1,18 @@
+import type { {{ name }}Request, {{ name }}Response } from "./types";
+
+export async function {{ method }}(req: Request): Promise<Response> {
+  try {
+    // TODO: implement {{ name }} {{ method }} handler
+    const data: {{ name }}Response = {
+      message: "{{ name }} endpoint",
+    };
+
+    return Response.json(data, { status: 200 });
+  } catch (error) {
+    console.error(`[{{ name }}] Error:`, error);
+    return Response.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

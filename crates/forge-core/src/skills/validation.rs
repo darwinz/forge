@@ -41,7 +41,7 @@ pub fn validate_skill(skill: &DiscoveredSkill) -> ValidationResult {
 
     // Execution section
     if let Some(ref exec) = info.execution {
-        // Check entrypoint exists
+        // Check entrypoint exists (may be a file or directory)
         let entrypoint = skill.path.join(&exec.entrypoint);
         if !entrypoint.exists() {
             errors.push(format!(
@@ -52,8 +52,24 @@ pub fn validate_skill(skill: &DiscoveredSkill) -> ValidationResult {
 
         // Validate exec type
         match exec.exec_type.as_str() {
-            "script" | "binary" | "wasm" => {}
+            "template" | "transform" => {} // supported in v1
+            "script" | "binary" | "wasm" => {
+                warnings.push(format!(
+                    "execution type '{}' is defined but not supported in forge v1",
+                    exec.exec_type
+                ));
+            }
             other => errors.push(format!("unknown execution type: {other}")),
+        }
+
+        // Template skills: check outputs are defined
+        if exec.exec_type == "template" && exec.outputs.is_empty() {
+            warnings.push("template skill has no [[outputs]] defined".to_string());
+        }
+
+        // Transform skills: check transforms are defined
+        if exec.exec_type == "transform" && exec.transforms.is_empty() {
+            warnings.push("transform skill has no [[transforms]] defined".to_string());
         }
     }
 

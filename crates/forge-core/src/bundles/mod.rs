@@ -1,3 +1,4 @@
+pub mod edit;
 pub mod installer;
 pub mod inventory;
 pub mod registry;

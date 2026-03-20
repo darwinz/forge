@@ -9,7 +9,10 @@ use anyhow::{Context, Result};
 use clap::Parser;
 
 use forge_core::{
-    bundles::{installer, ActionKind, BundleInventory, BundleRegistry, EnvironmentScan},
+    bundles::{
+        edit as bundle_edit, installer, ActionKind, BundleInventory, BundleRegistry,
+        EnvironmentScan,
+    },
     commands::{
         aws, docker, file_ops, git, misc, netlify, notes, platform, shell_aliases, supabase,
         system, vercel,
@@ -58,9 +61,25 @@ fn main() -> Result<()> {
             add,
             all,
             yes,
+            add_package,
+            source,
+            to_bundle,
+            instructions,
+            check_command,
         } => {
             let bundle_dir = resolve_bundle_dir(&config);
-            if list_bundles {
+            if let Some(ref pkg_name) = add_package {
+                cmd_bootstrap_add_package(
+                    &printer,
+                    &bundle_dir,
+                    pkg_name,
+                    &source,
+                    &to_bundle,
+                    instructions.as_deref(),
+                    check_command.as_deref(),
+                    cli.dry_run,
+                )?;
+            } else if list_bundles {
                 cmd_bootstrap_list(&printer, &bundle_dir)?;
             } else if status {
                 cmd_bootstrap_status(&printer, &bundle_dir, &*runner, &format)?;
@@ -630,6 +649,84 @@ fn cmd_bootstrap_install(
     }
 
     printer.newline();
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn cmd_bootstrap_add_package(
+    printer: &Printer,
+    bundle_dir: &Path,
+    package: &str,
+    source_str: &str,
+    to_bundle: &str,
+    instructions: Option<&str>,
+    check_command: Option<&str>,
+    dry_run: bool,
+) -> Result<()> {
+    let source = bundle_edit::PackageSource::parse(source_str).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Unknown source: '{source_str}'. \
+             Options: brew, cask, npm, go, gem, uv, manual"
+        )
+    })?;
+
+    // Find the bundle file
+    let bundle_path = bundle_dir.join(format!("{to_bundle}.toml"));
+    if !bundle_path.exists() {
+        printer.error(&format!("Bundle not found: {to_bundle}"));
+        printer.dim(&format!("  Expected: {}", bundle_path.display()));
+        printer.dim("  Run `forge bootstrap --list-bundles` to see available bundles.");
+        return Ok(());
+    }
+
+    // Plan
+    let result =
+        bundle_edit::plan_add_package(&bundle_path, &source, package, instructions, check_command)?;
+
+    printer.newline();
+    printer.heading(&format!(
+        "Add {} to {} bundle:",
+        source.label(),
+        result.bundle_name
+    ));
+    printer.newline();
+
+    if result.already_exists {
+        printer.dim(&format!(
+            "  '{package}' already exists in {to_bundle} bundle as a {}.",
+            source.label()
+        ));
+        printer.newline();
+        return Ok(());
+    }
+
+    // Show diff
+    printer.bold("  Changes:");
+    for line in result.diff.lines() {
+        if line.starts_with('+') {
+            printer.success(&format!("    {line}"));
+        } else if line.starts_with('-') {
+            printer.warning(&format!("    {line}"));
+        } else {
+            printer.dim(&format!("    {line}"));
+        }
+    }
+    printer.newline();
+
+    if dry_run {
+        printer.dim("[dry-run] No files will be modified.");
+        printer.newline();
+        return Ok(());
+    }
+
+    // Apply
+    bundle_edit::apply_add_package(&bundle_path, &source, package, instructions, check_command)?;
+    printer.success(&format!(
+        "  Added '{package}' to {to_bundle} as a {}.",
+        source.label()
+    ));
+    printer.newline();
+
     Ok(())
 }
 
