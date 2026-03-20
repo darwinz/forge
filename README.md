@@ -17,7 +17,7 @@ forge is in active development. The read-only foundation is solid and usable tod
 | CLI skeleton, help, subcommand tree | Done |
 | Notes/cheatsheets (33 topics) | Done |
 | System monitoring (read-only) | Done |
-| File search (`find`, `search`, `spotlight`) | Done |
+| File operations (find, search, spotlight, extract, trash, cleanup-ds) | Done |
 | Misc (`weather`, `define`) | Done |
 | Shell alias generation | Done |
 | Bundle manifests and registry | Done |
@@ -101,15 +101,22 @@ forge system top         # CPU/memory snapshot
 
 ### `forge file <command>`
 
-File search commands (read-only subset implemented).
+File search and safe file mutation commands.
 
 ```bash
+# Read-only
 forge file find "*.toml"       # Find files by name
 forge file search "TODO"       # Recursive grep (excludes .git, node_modules, target)
 forge file spotlight "budget"  # macOS Spotlight search
+
+# Mutation
+forge file extract archive.tar.gz     # Extract archive (tar, zip, gz, bz2, rar, 7z)
+forge file trash somefile.txt          # Move to trash (never permanently deletes)
+forge file cleanup-ds                  # Find and remove .DS_Store files (with confirmation)
+forge file cleanup-ds --yes            # Skip confirmation
 ```
 
-`extract`, `trash`, `cleanup-ds`, `mkdir-cd` are defined but not yet implemented (require mutation).
+**Safety:** `extract` supports 9 archive formats via explicit command dispatch (no shell interpolation). `trash` uses `trash`/`trash-put` or falls back to `~/.Trash`/`~/.local/share/Trash/files/` — it never permanently deletes. `cleanup-ds` previews all matches and requires confirmation before removing.
 
 ### `forge misc <command>`
 
@@ -323,7 +330,7 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (161 tests)
+cargo test                     # Run all tests (180 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 

@@ -79,7 +79,7 @@ fn main() -> Result<()> {
             let repo_dir = find_repo_skills_dir(&config.skills.repo_dir);
             cmd_skill(&printer, command, &user_dir, repo_dir.as_deref(), &config)?;
         }
-        Commands::File { command } => cmd_file(&printer, &*runner, command)?,
+        Commands::File { command } => cmd_file(&printer, &*runner, command, cli.dry_run)?,
         Commands::Docker { command } => {
             cmd_docker(&printer, &*runner, command, cli.dry_run)?;
         }
@@ -793,8 +793,14 @@ fn cmd_skill(
 
 // --- File ---
 
-fn cmd_file(printer: &Printer, runner: &dyn CommandRunner, command: FileCommands) -> Result<()> {
+fn cmd_file(
+    printer: &Printer,
+    runner: &dyn CommandRunner,
+    command: FileCommands,
+    dry_run: bool,
+) -> Result<()> {
     match command {
+        // --- Read-only ---
         FileCommands::Find { pattern } => {
             let output = file_ops::find_file(runner, &pattern)?;
             if !output.is_empty() {
@@ -813,18 +819,53 @@ fn cmd_file(printer: &Printer, runner: &dyn CommandRunner, command: FileCommands
                 printer.print(&output);
             }
         }
-        FileCommands::Extract { .. } => {
-            printer.dim("forge file extract — not yet implemented (Phase 2).");
+
+        // --- Mutation ---
+        FileCommands::Extract { file } => {
+            let output = file_ops::extract(runner, &file)?;
+            if !output.is_empty() {
+                printer.success(&output);
+            }
         }
-        FileCommands::Trash { .. } => {
-            printer.dim("forge file trash — not yet implemented (Phase 2, requires mutation).");
+        FileCommands::Trash { file } => {
+            let output = file_ops::trash(runner, &file)?;
+            if !output.is_empty() {
+                printer.success(&output);
+            }
         }
-        FileCommands::MkdirCd { .. } => {
-            printer.dim("forge file mkdir-cd — not yet implemented (Phase 2, requires mutation).");
-        }
-        FileCommands::CleanupDs => {
-            printer
-                .dim("forge file cleanup-ds — not yet implemented (Phase 2, requires mutation).");
+        FileCommands::CleanupDs { yes } => {
+            let files = file_ops::find_ds_store(runner)?;
+
+            if files.is_empty() {
+                printer.dim("No .DS_Store files found.");
+                return Ok(());
+            }
+
+            printer.newline();
+            printer.heading(&format!("Found {} .DS_Store file(s):", files.len()));
+            printer.newline();
+            for f in &files {
+                println!("  {f}");
+            }
+            printer.newline();
+
+            if dry_run {
+                printer.dim("[dry-run] No files will be removed.");
+                return Ok(());
+            }
+
+            if !yes
+                && !confirm_destructive(
+                    printer,
+                    &format!("Remove {} .DS_Store file(s)?", files.len()),
+                )?
+            {
+                printer.dim("Aborted.");
+                return Ok(());
+            }
+
+            let result = file_ops::remove_ds_store(runner, &files)?;
+            printer.success(&result);
         }
     }
     Ok(())

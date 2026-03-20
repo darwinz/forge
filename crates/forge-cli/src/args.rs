@@ -179,21 +179,7 @@ pub enum SystemCommands {
 
 #[derive(Subcommand)]
 pub enum FileCommands {
-    /// Extract an archive (tar, zip, gz, bz2, etc.)
-    Extract {
-        /// Archive file path
-        file: String,
-    },
-    /// Move file to trash
-    Trash {
-        /// File to trash
-        file: String,
-    },
-    /// Create directory and cd into it
-    MkdirCd {
-        /// Directory name
-        dir: String,
-    },
+    // --- Read-only ---
     /// Find file by name
     Find {
         /// Filename pattern
@@ -209,8 +195,24 @@ pub enum FileCommands {
         /// Search pattern
         pattern: String,
     },
-    /// Remove .DS_Store files recursively
-    CleanupDs,
+
+    // --- Mutation ---
+    /// Extract an archive (tar, zip, gz, bz2, rar, 7z)
+    Extract {
+        /// Archive file path
+        file: String,
+    },
+    /// Move file to trash (no permanent delete)
+    Trash {
+        /// File or directory to trash
+        file: String,
+    },
+    /// Remove .DS_Store files recursively (requires confirmation)
+    CleanupDs {
+        /// Skip confirmation prompt
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
 }
 
 #[derive(Subcommand)]

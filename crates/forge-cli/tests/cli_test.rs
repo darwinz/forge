@@ -527,16 +527,67 @@ fn test_bootstrap_manual_entries_show_instructions() {
 }
 
 // ---------------------------------------------------------------------------
-// Unimplemented stubs
+// File mutation commands
 // ---------------------------------------------------------------------------
 
 #[test]
-fn test_unimplemented_commands_show_message() {
+fn test_file_help_shows_all_commands() {
     forge()
-        .args(["file", "cleanup-ds"])
+        .args(["file", "--help"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("not yet implemented"));
+        .stdout(predicate::str::contains("find"))
+        .stdout(predicate::str::contains("search"))
+        .stdout(predicate::str::contains("extract"))
+        .stdout(predicate::str::contains("trash"))
+        .stdout(predicate::str::contains("cleanup-ds"));
+}
+
+#[test]
+fn test_file_extract_dry_run() {
+    forge()
+        .args(["--dry-run", "file", "extract", "test.tar.gz"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("tar"));
+}
+
+#[test]
+fn test_file_extract_unsupported_format() {
+    forge()
+        .args(["--dry-run", "file", "extract", "test.txt"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Unsupported archive format"));
+}
+
+#[test]
+fn test_file_trash_dry_run() {
+    forge()
+        .args(["--dry-run", "file", "trash", "somefile.txt"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+#[test]
+fn test_file_cleanup_ds_dry_run() {
+    forge()
+        .args(["--dry-run", "file", "cleanup-ds"])
+        .assert()
+        .success();
+    // In dry-run, either "No .DS_Store files found" or "[dry-run]"
+}
+
+#[test]
+fn test_file_cleanup_ds_has_yes_flag() {
+    forge()
+        .args(["file", "cleanup-ds", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--yes"))
+        .stdout(predicate::str::contains("-y"));
 }
 
 // ---------------------------------------------------------------------------
