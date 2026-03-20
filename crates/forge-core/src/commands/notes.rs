@@ -30,6 +30,17 @@ pub static TOPICS: &[(&str, &str)] = &[
     ("claude", "Claude Code CLI — AI coding agent"),
     ("codex", "OpenAI Codex CLI — AI coding agent"),
     ("nvim", "Neovim config — plugins, keybinds, Go dev, LSP"),
+    ("vercel", "Vercel CLI — deploy, env, domains, dev server"),
+    (
+        "supabase",
+        "Supabase CLI — local dev, migrations, functions",
+    ),
+    ("netlify", "Netlify CLI — deploy, dev, env, functions"),
+    ("render", "Render CLI — services, deploys, env, logs"),
+    (
+        "appwrite",
+        "Appwrite CLI — projects, databases, functions, auth",
+    ),
 ];
 
 /// List all available notes topics
@@ -68,6 +79,11 @@ pub fn get_notes(topic: &str) -> ForgeResult<&'static str> {
         "claude" => Ok(NOTES_CLAUDE),
         "codex" => Ok(NOTES_CODEX),
         "nvim" => Ok(NOTES_NVIM),
+        "vercel" => Ok(NOTES_VERCEL),
+        "supabase" => Ok(NOTES_SUPABASE),
+        "netlify" => Ok(NOTES_NETLIFY),
+        "render" => Ok(NOTES_RENDER),
+        "appwrite" => Ok(NOTES_APPWRITE),
         _ => Err(ForgeError::NotesTopicNotFound(topic.to_string())),
     }
 }
@@ -620,3 +636,188 @@ Plugin management (lazy.nvim):
 Plugins: nvim-tree, telescope, flash, bufferline, Comment, neosnippet,
   conform, gitsigns, fugitive, go.nvim, copilot, avante, noice, notify,
   markview, wakatime, navigator, lazy.nvim, treesitter";
+
+static NOTES_VERCEL: &str = "\
+https://vercel.com/docs/cli
+
+Setup:
+  vercel login                        Authenticate
+  vercel link                         Link current directory to a Vercel project
+  vercel env pull .env.local          Pull environment variables to local file
+  vercel whoami                       Show current user
+
+Development:
+  vercel dev                          Start local dev server (mirrors Vercel environment)
+  vercel build                        Run production build locally
+
+Deploy:
+  vercel                              Deploy to preview
+  vercel --prod                       Deploy to production
+  vercel deploy --prebuilt            Deploy pre-built output (fast, for CI)
+  vercel promote <url>                Promote a preview deployment to production
+  vercel rollback                     Roll back to previous production deployment
+
+Environment variables:
+  vercel env ls                       List all env vars
+  vercel env add <name>               Add env var (interactive)
+  vercel env rm <name>                Remove env var
+  vercel env pull                     Sync remote env vars to .env.local
+
+Domains:
+  vercel domains ls                   List domains
+  vercel domains add <domain>         Add a domain
+  vercel dns ls <domain>              List DNS records
+
+Inspection:
+  vercel inspect <url>                Show deployment details
+  vercel logs <url>                   View function logs
+  vercel ls                           List recent deployments
+
+Marketplace integrations:
+  vercel integration add              Install a marketplace integration
+  vercel integration list             List installed integrations
+
+Useful patterns:
+  vercel link && vercel env pull      Set up a new checkout
+  vercel --prod && vercel inspect     Deploy and verify";
+
+static NOTES_SUPABASE: &str = "\
+https://supabase.com/docs/reference/cli
+
+Setup:
+  supabase login                      Authenticate with Supabase
+  supabase init                       Initialize a new Supabase project locally
+  supabase link --project-ref <ref>   Link to a remote project
+  supabase start                      Start local dev stack (requires Docker)
+  supabase stop                       Stop local dev stack
+
+Local development:
+  supabase status                     Show local stack status (URLs, ports, keys)
+  supabase db reset                   Reset local database to clean state
+  supabase db seed                    Run seed file
+  supabase inspect db                 Database size and index stats
+
+Migrations:
+  supabase migration new <name>       Create a new migration file
+  supabase db diff                    Generate migration from schema changes
+  supabase db push                    Push local migrations to remote database
+  supabase db pull                    Pull remote schema to local migrations
+
+Functions:
+  supabase functions new <name>       Create a new edge function
+  supabase functions serve            Serve functions locally with hot reload
+  supabase functions deploy <name>    Deploy a function
+  supabase functions deploy --all     Deploy all functions
+
+Auth / Storage / Edge:
+  supabase gen types typescript       Generate TypeScript types from schema
+
+Useful patterns:
+  supabase start && supabase status   Start and show connection details
+  supabase db diff -f <name>          Generate named migration from changes
+  supabase db push --dry-run          Preview migration push without executing";
+
+static NOTES_NETLIFY: &str = "\
+https://docs.netlify.com/cli/get-started/
+
+Setup:
+  netlify login                       Authenticate
+  netlify init                        Initialize or link a site
+  netlify link                        Link to an existing site
+  netlify status                      Show current status (user, linked site)
+
+Development:
+  netlify dev                         Start local dev server (simulates Netlify edge)
+  netlify dev --live                  Start with live share URL
+
+Deploy:
+  netlify deploy                      Deploy to a draft URL (preview)
+  netlify deploy --prod               Deploy to production
+  netlify deploy --dir=./dist         Deploy a specific directory
+  netlify open                        Open site in browser
+
+Environment variables:
+  netlify env:list                    List all env vars
+  netlify env:set <key> <value>       Set an env var
+  netlify env:unset <key>             Remove an env var
+  netlify env:import .env             Import from .env file
+
+Functions:
+  netlify functions:create <name>     Scaffold a new function
+  netlify functions:serve             Serve functions locally
+  netlify functions:list              List deployed functions
+
+Build:
+  netlify build                       Run build locally
+  netlify build --dry                 Dry-run build
+
+Useful patterns:
+  netlify link && netlify env:list    Set up a new checkout
+  netlify deploy --prod --dir=./dist  Deploy static site to production";
+
+static NOTES_RENDER: &str = "\
+https://render.com/docs/cli
+
+Setup:
+  render login                        Authenticate via browser
+  render whoami                       Show current user
+  render regions                      List available regions
+
+Services:
+  render services list                List all services
+  render services show <id>           Show service details
+  render services tail <id>           Tail service logs
+  render services restart <id>        Restart a service
+  render services ssh <id>            SSH to a service (if applicable)
+
+Deploys:
+  render deploys list --service <id>        List deploys
+  render deploys create --service <id>      Trigger a manual deploy
+  render deploys show <id>                  Show deploy details
+
+Environment:
+  render env show --service <id>            Show env vars
+  render env set --service <id> KEY=VAL     Set an env var
+  render env rm --service <id> KEY          Remove an env var
+
+Blueprints (Infrastructure as Code):
+  render blueprint launch             Deploy from render.yaml
+  render blueprint preview            Preview blueprint changes
+
+Useful patterns:
+  render services list                Quick inventory of all services
+  render services tail <id> -f        Follow logs in real time";
+
+static NOTES_APPWRITE: &str = "\
+https://appwrite.io/docs/tooling/command-line/installation
+
+Setup:
+  appwrite login                      Authenticate
+  appwrite init project               Initialize a project
+  appwrite init function              Initialize a function
+  appwrite client setProject <id>     Set active project
+
+Deploy:
+  appwrite deploy function            Deploy functions
+  appwrite deploy collection          Deploy database collections
+
+Databases:
+  appwrite databases list             List databases
+  appwrite databases listDocuments    List documents in a collection
+
+Functions:
+  appwrite functions list             List functions
+  appwrite functions listExecutions   List function executions
+  appwrite functions createExecution  Execute a function
+
+Users:
+  appwrite users list                 List users
+  appwrite users create               Create a user
+
+Storage:
+  appwrite storage listBuckets        List storage buckets
+  appwrite storage listFiles          List files in a bucket
+
+Useful patterns:
+  appwrite deploy function --all      Deploy all functions at once
+  appwrite init project               Start a new project locally";

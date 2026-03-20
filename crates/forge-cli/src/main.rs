@@ -8,7 +8,7 @@ use clap::Parser;
 
 use forge_core::{
     bundles::{installer, ActionKind, BundleInventory, BundleRegistry, EnvironmentScan},
-    commands::{aws, docker, file_ops, git, misc, notes, shell_aliases, system},
+    commands::{aws, docker, file_ops, git, misc, notes, platform, shell_aliases, system},
     config,
     exec::{CommandRunner, DryRunRunner, RealRunner},
     logging, os,
@@ -85,6 +85,9 @@ fn main() -> Result<()> {
         }
         Commands::Aws { command } => {
             cmd_aws(&printer, &*runner, command)?;
+        }
+        Commands::Platform { command } => {
+            cmd_platform(&printer, &*runner, command)?;
         }
         Commands::Git { command } => {
             let config_path = resolve_git_aliases_path(&config);
@@ -1068,6 +1071,90 @@ fn cmd_aws(printer: &Printer, runner: &dyn CommandRunner, command: AwsCommands) 
                 printer.dim(&format!("  {} instance(s)", instances.len()));
                 printer
                     .dim("  Use `forge aws ssh --query <name>` to connect to a specific instance.");
+            }
+            printer.newline();
+        }
+    }
+    Ok(())
+}
+
+// --- Platform ---
+
+fn cmd_platform(
+    printer: &Printer,
+    runner: &dyn CommandRunner,
+    command: PlatformCommands,
+) -> Result<()> {
+    match command {
+        PlatformCommands::Status => {
+            let statuses = platform::check_status(runner);
+            printer.newline();
+            printer.heading("Platform CLI status:");
+            printer.newline();
+
+            for s in &statuses {
+                let marker = if s.installed { "installed" } else { "missing" };
+                let version = s.version.as_deref().unwrap_or("");
+                if s.installed {
+                    printer.package_state(&format!("{:<12} {}", s.name, version), marker);
+                } else {
+                    printer.package_state(&s.name, marker);
+                }
+            }
+            printer.newline();
+
+            let installed_count = statuses.iter().filter(|s| s.installed).count();
+            printer.dim(&format!(
+                "  {}/{} platform CLIs installed",
+                installed_count,
+                statuses.len()
+            ));
+            printer.dim("  Install with: forge bootstrap --add platforms");
+            printer.newline();
+        }
+
+        PlatformCommands::Doctor => {
+            let results = platform::doctor(runner);
+            printer.newline();
+            printer.heading("Platform doctor:");
+            printer.newline();
+
+            for r in &results {
+                if !r.installed {
+                    printer.package_state(&format!("{}: not installed", r.name), "missing");
+                    continue;
+                }
+
+                let version = r.version.as_deref().unwrap_or("unknown version");
+                printer.bold(&format!("  {} ({})", r.name, version));
+
+                // Auth
+                match r.authenticated {
+                    Some(true) => {
+                        let detail = r.auth_detail.as_deref().unwrap_or("yes");
+                        printer.package_state(&format!("  Auth: {detail}"), "installed");
+                    }
+                    Some(false) => {
+                        let detail = r.auth_detail.as_deref().unwrap_or("not logged in");
+                        printer.package_state(&format!("  Auth: {detail}"), "missing");
+                    }
+                    None => {
+                        let detail = r.auth_detail.as_deref().unwrap_or("not checked");
+                        printer.dim(&format!("    Auth: {detail}"));
+                    }
+                }
+
+                // Project link
+                match r.project_linked {
+                    Some(true) => {
+                        let detail = r.link_detail.as_deref().unwrap_or("linked");
+                        printer.package_state(&format!("  Project: {detail}"), "installed");
+                    }
+                    Some(false) => {
+                        printer.package_state("  Project: not linked", "missing");
+                    }
+                    None => {}
+                }
             }
             printer.newline();
         }

@@ -6,6 +6,6 @@ tier = "role"
 [brew]
 formulae = [
   "awscli", "doctl", "k9s", "kubernetes-cli",
-  "stern", "tfenv", "vaulted", "supabase",
+  "stern", "tfenv", "vaulted",
 ]
 casks = ["1password-cli"]

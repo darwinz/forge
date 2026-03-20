@@ -887,3 +887,152 @@ fn test_aws_connect_dry_run() {
         .success()
         .stdout(predicate::str::contains("[dry-run]"));
 }
+
+// ---------------------------------------------------------------------------
+// Platform commands
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_platform_bare_shows_help() {
+    forge()
+        .arg("platform")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Usage"));
+}
+
+#[test]
+fn test_platform_help() {
+    forge()
+        .args(["platform", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("doctor"))
+        .stdout(predicate::str::contains("status"));
+}
+
+#[test]
+fn test_platform_status() {
+    // Should always succeed — reports installed/missing for each platform
+    forge()
+        .args(["platform", "status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Platform CLI status"))
+        .stdout(predicate::str::contains("Vercel"))
+        .stdout(predicate::str::contains("Supabase"))
+        .stdout(predicate::str::contains("Netlify"))
+        .stdout(predicate::str::contains("Render"))
+        .stdout(predicate::str::contains("Appwrite"));
+}
+
+#[test]
+fn test_platform_status_dry_run() {
+    forge()
+        .args(["--dry-run", "platform", "status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Platform CLI status"))
+        // In dry-run, all should show as missing since we can't check
+        .stdout(predicate::str::contains("[missing]"));
+}
+
+#[test]
+fn test_platform_doctor() {
+    forge()
+        .args(["platform", "doctor"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Platform doctor"));
+}
+
+#[test]
+fn test_platform_doctor_dry_run() {
+    forge()
+        .args(["--dry-run", "platform", "doctor"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Platform doctor"))
+        .stdout(predicate::str::contains("not installed"));
+}
+
+// ---------------------------------------------------------------------------
+// Notes — platform topics
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_notes_vercel() {
+    forge()
+        .args(["notes", "vercel"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("vercel login"))
+        .stdout(predicate::str::contains("vercel deploy"))
+        .stdout(predicate::str::contains("vercel env"));
+}
+
+#[test]
+fn test_notes_supabase() {
+    forge()
+        .args(["notes", "supabase"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("supabase start"))
+        .stdout(predicate::str::contains("supabase db"));
+}
+
+#[test]
+fn test_notes_netlify() {
+    forge()
+        .args(["notes", "netlify"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("netlify deploy"))
+        .stdout(predicate::str::contains("netlify dev"));
+}
+
+#[test]
+fn test_notes_render() {
+    forge()
+        .args(["notes", "render"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("render services"))
+        .stdout(predicate::str::contains("render deploys"));
+}
+
+#[test]
+fn test_notes_appwrite() {
+    forge()
+        .args(["notes", "appwrite"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("appwrite deploy"))
+        .stdout(predicate::str::contains("appwrite functions"));
+}
+
+#[test]
+fn test_notes_list_includes_platforms() {
+    forge()
+        .arg("notes")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("vercel"))
+        .stdout(predicate::str::contains("supabase"))
+        .stdout(predicate::str::contains("netlify"))
+        .stdout(predicate::str::contains("render"))
+        .stdout(predicate::str::contains("appwrite"));
+}
+
+// ---------------------------------------------------------------------------
+// Bundle: platforms bundle exists
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_bootstrap_list_includes_platforms() {
+    forge()
+        .args(["bootstrap", "--list-bundles"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("platforms"));
+}

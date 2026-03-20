@@ -7,4 +7,4 @@ tier = "role"
 formulae = ["node", "yarn"]
 
 [npm]
-packages = ["typescript", "eslint", "prettier", "nodemon", "vercel", "netlify-cli"]
+packages = ["typescript", "eslint", "prettier", "nodemon"]

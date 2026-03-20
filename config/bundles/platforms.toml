@@ -1,0 +1,10 @@
+[bundle]
+name = "platforms"
+description = "Deployment platforms — Vercel, Supabase, Netlify, Render, Appwrite"
+tier = "role"
+
+[brew]
+formulae = ["supabase", "render"]
+
+[npm]
+packages = ["vercel", "netlify-cli", "appwrite-cli"]

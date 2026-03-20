@@ -15,7 +15,7 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Area | Status |
 |------|--------|
 | CLI skeleton, help, subcommand tree | Done |
-| Notes/cheatsheets (28 topics) | Done |
+| Notes/cheatsheets (33 topics) | Done |
 | System monitoring (read-only) | Done |
 | File search (`find`, `search`, `spotlight`) | Done |
 | Misc (`weather`, `define`) | Done |
@@ -29,10 +29,11 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Docker utilities (host, images, ps, rm with guards) | Done |
 | Git alias management (declarative TOML config) | Done |
 | AWS commands (instances, SSH, load balancer connect) | Done |
-| Platform CLIs bundle (Vercel, Supabase, Netlify, Render, Appwrite) | Planned |
-| Platform notes/cheatsheets (vercel, supabase, netlify, render, appwrite) | Planned |
-| `forge vercel` command group (status, doctor, deploy, env-diff) | Planned |
-| `forge supabase` command group (status, doctor, reset) | Planned |
+| Platform CLIs bundle (Vercel, Supabase, Netlify, Render, Appwrite) | Done |
+| Platform notes (vercel, supabase, netlify, render, appwrite) | Done |
+| Platform diagnostics (`forge platform doctor/status`) | Done |
+| `forge vercel` command group (deploy, env-diff) | Planned |
+| `forge supabase` command group (reset, schema diff) | Planned |
 | Shell profile management | Planned |
 | Self-update | Planned |
 | Skill execution / sandbox | Planned |
@@ -252,6 +253,28 @@ forge aws connect --profile prod            # Use a named profile
 - `connect` shows instances behind an ALB but does not auto-SSH; use `forge aws ssh` to connect
 - All commands support `--region` override
 
+### `forge platform <command>`
+
+Cross-platform CLI diagnostics for deployment platforms.
+
+```bash
+forge platform status          # Show which platform CLIs are installed
+forge platform doctor          # Check install, auth, and project link status
+```
+
+Checks five platforms: **Vercel**, **Supabase**, **Netlify**, **Render**, **Appwrite**.
+
+`forge platform doctor` checks three layers for each installed CLI:
+1. **Installed** — is the CLI on PATH and what version
+2. **Authenticated** — are you logged in (via CLI command or token file existence)
+3. **Project linked** — is the current directory linked to a project
+
+Auth checks never read token contents — they use `whoami` commands or check for file existence only.
+
+All platforms are also available as notes topics: `forge notes vercel`, `forge notes supabase`, etc.
+
+**Bundle:** `forge bootstrap --add platforms` installs all five CLIs.
+
 ### Not yet implemented
 
 These features are planned but not yet available:
@@ -300,7 +323,7 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (144 tests)
+cargo test                     # Run all tests (161 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 

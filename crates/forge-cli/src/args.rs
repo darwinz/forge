@@ -67,6 +67,13 @@ pub enum Commands {
         command: GitCommands,
     },
 
+    /// Platform CLI diagnostics (Vercel, Supabase, Netlify, Render, Appwrite)
+    #[command(arg_required_else_help = true)]
+    Platform {
+        #[command(subcommand)]
+        command: PlatformCommands,
+    },
+
     /// Miscellaneous utilities
     #[command(arg_required_else_help = true)]
     Misc {
@@ -280,6 +287,14 @@ pub enum AwsCommands {
         #[arg(short, long)]
         region: Option<String>,
     },
+}
+
+#[derive(Subcommand)]
+pub enum PlatformCommands {
+    /// Check platform CLI installation, auth, and project link status
+    Doctor,
+    /// Show which platform CLIs are installed and their versions
+    Status,
 }
 
 #[derive(Subcommand)]
