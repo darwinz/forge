@@ -8,7 +8,7 @@ use clap::Parser;
 
 use forge_core::{
     bundles::{installer, ActionKind, BundleInventory, BundleRegistry, EnvironmentScan},
-    commands::{docker, file_ops, git, misc, notes, shell_aliases, system},
+    commands::{aws, docker, file_ops, git, misc, notes, shell_aliases, system},
     config,
     exec::{CommandRunner, DryRunRunner, RealRunner},
     logging, os,
@@ -83,8 +83,8 @@ fn main() -> Result<()> {
         Commands::Docker { command } => {
             cmd_docker(&printer, &*runner, command, cli.dry_run)?;
         }
-        Commands::Aws { .. } => {
-            printer.dim("AWS commands not yet implemented (Phase 5).");
+        Commands::Aws { command } => {
+            cmd_aws(&printer, &*runner, command)?;
         }
         Commands::Git { command } => {
             let config_path = resolve_git_aliases_path(&config);
@@ -933,6 +933,146 @@ fn confirm_destructive(_printer: &Printer, message: &str) -> Result<bool> {
         .context("failed to read stdin")?;
     let answer = input.trim().to_lowercase();
     Ok(answer == "y" || answer == "yes")
+}
+
+// --- AWS ---
+
+fn cmd_aws(printer: &Printer, runner: &dyn CommandRunner, command: AwsCommands) -> Result<()> {
+    match command {
+        AwsCommands::Instances {
+            profile,
+            query,
+            region,
+        } => {
+            let instances = aws::list_instances(
+                runner,
+                profile.as_deref(),
+                region.as_deref(),
+                query.as_deref(),
+            )?;
+
+            printer.newline();
+            if let Some(ref q) = query {
+                printer.heading(&format!("EC2 instances (filter: {q}):"));
+            } else {
+                printer.heading("EC2 instances:");
+            }
+            printer.newline();
+            printer.print(&aws::format_instances(&instances));
+            printer.newline();
+            printer.dim(&format!("  {} instance(s) found", instances.len()));
+            printer.newline();
+        }
+
+        AwsCommands::Ssh {
+            profile,
+            query,
+            region,
+            key,
+            user,
+        } => {
+            let instances = aws::list_instances(
+                runner,
+                profile.as_deref(),
+                region.as_deref(),
+                query.as_deref(),
+            )?;
+
+            if runner.is_dry_run() {
+                // In dry-run, just show what would happen
+                printer.dim("[dry-run] Would resolve instance and SSH.");
+                return Ok(());
+            }
+
+            if instances.is_empty() {
+                printer.error("No instances found matching your query.");
+                printer.dim("Try `forge aws instances` to see available instances.");
+                return Ok(());
+            }
+
+            // If multiple instances, ask the user to narrow their query
+            let target = if instances.len() == 1 {
+                &instances[0]
+            } else {
+                printer.newline();
+                printer.heading("Multiple instances found:");
+                printer.newline();
+                for (i, inst) in instances.iter().enumerate() {
+                    let ip = inst.connect_ip().unwrap_or("-");
+                    println!(
+                        "  [{}] {} — {} ({})",
+                        i + 1,
+                        inst.name,
+                        ip,
+                        inst.instance_id
+                    );
+                }
+                printer.newline();
+                printer.print("Select instance [1]: ");
+                let mut input = String::new();
+                std::io::stdin()
+                    .read_line(&mut input)
+                    .context("failed to read stdin")?;
+                let choice: usize = input.trim().parse::<usize>().unwrap_or(1).saturating_sub(1);
+                if choice >= instances.len() {
+                    printer.error("Invalid selection.");
+                    return Ok(());
+                }
+                &instances[choice]
+            };
+
+            let ip = match target.connect_ip() {
+                Some(ip) => ip,
+                None => {
+                    printer.error(&format!(
+                        "Instance {} ({}) has no IP address.",
+                        target.name, target.instance_id
+                    ));
+                    return Ok(());
+                }
+            };
+
+            printer.dim(&format!(
+                "Connecting to {} ({}) at {ip} as {user}...",
+                target.name, target.instance_id
+            ));
+
+            let (prog, args) = aws::build_ssh_command(ip, &user, key.as_deref());
+            printer.dim(&format!("  {} {}", prog, args.join(" ")));
+            printer.newline();
+
+            aws::exec_ssh(runner, ip, &user, key.as_deref())?;
+        }
+
+        AwsCommands::Connect {
+            profile,
+            lb_name,
+            region,
+        } => {
+            let (lb_display, instances) = aws::list_lb_instances(
+                runner,
+                profile.as_deref(),
+                region.as_deref(),
+                lb_name.as_deref(),
+            )?;
+
+            printer.newline();
+            printer.heading(&format!("Instances behind LB: {lb_display}"));
+            printer.newline();
+
+            if instances.is_empty() {
+                printer.dim("  No instances found behind this load balancer.");
+            } else {
+                printer.print(&aws::format_instances(&instances));
+                printer.newline();
+                printer.dim(&format!("  {} instance(s)", instances.len()));
+                printer
+                    .dim("  Use `forge aws ssh --query <name>` to connect to a specific instance.");
+            }
+            printer.newline();
+        }
+    }
+    Ok(())
 }
 
 // --- Git ---

@@ -28,7 +28,7 @@ forge is in active development. The read-only foundation is solid and usable tod
 | `--dry-run` across all commands | Done |
 | Docker utilities (host, images, ps, rm with guards) | Done |
 | Git alias management (declarative TOML config) | Done |
-| AWS commands | Planned |
+| AWS commands (instances, SSH, load balancer connect) | Done |
 | Shell profile management | Planned |
 | Self-update | Planned |
 | Skill execution / sandbox | Planned |
@@ -216,11 +216,41 @@ forge --dry-run git setup-aliases  # Preview only, no changes
 
 `setup-aliases` compares the config file against your current `git config --global`, shows a diff (adds, changes, unchanged), and applies only after confirmation. In `--dry-run` mode, the preview is shown but nothing is written.
 
+### `forge aws <command>`
+
+AWS operations using the AWS CLI as the execution backend.
+
+```bash
+forge aws instances                          # List running/stopped EC2 instances
+forge aws instances --profile prod           # Use a named AWS profile
+forge aws instances --query web              # Filter by Name tag substring
+forge aws instances --region us-west-2       # Override region
+
+forge aws ssh --query web-01                 # SSH to an instance matching "web-01"
+forge aws ssh --query api --user ec2-user    # SSH as ec2-user
+forge aws ssh --key ~/.ssh/mykey.pem         # Use a specific SSH key
+forge aws ssh --profile prod --query worker  # Combine profile + filter
+
+forge aws connect --lb-name my-alb          # List instances behind a load balancer
+forge aws connect --profile prod            # Use a named profile
+```
+
+**Security notes:**
+- SSH uses standard OpenSSH host key verification — no `StrictHostKeyChecking=no` override
+- No shell interpolation; all AWS CLI and SSH arguments are passed as explicit arrays
+- No implicit key copying or profile mutation
+- If multiple instances match a query, `forge aws ssh` presents a selection prompt rather than guessing
+
+**Differences from the old Bash version:**
+- `StrictHostKeyChecking=no` removed entirely (was the default in old `mycli`)
+- `--keyname` renamed to `--key` (takes a path, not just a name)
+- Instance listing uses structured `--query` JMESPath + `--output text` instead of grep pipelines
+- `connect` shows instances behind an ALB but does not auto-SSH; use `forge aws ssh` to connect
+- All commands support `--region` override
+
 ### Not yet implemented
 
-These command groups are defined in the CLI but return placeholder messages:
-
-- `forge aws` — AWS operations (Phase 5)
+These features are planned but not yet available:
 
 ## Global options
 
@@ -245,7 +275,7 @@ Bundle manifests live in `config/bundles/*.toml`. Git aliases are declared in `c
 ```
 crates/
   forge-core/     # Library: all business logic
-    commands/     # notes, system, file_ops, misc, shell_aliases, docker, git
+    commands/     # notes, system, file_ops, misc, shell_aliases, docker, git, aws
     bundles/      # registry, inventory, sources, installer
     skills/       # metadata, discovery, validation, audit
     config/       # TOML schema and loading
@@ -266,7 +296,7 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (119 tests)
+cargo test                     # Run all tests (144 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 

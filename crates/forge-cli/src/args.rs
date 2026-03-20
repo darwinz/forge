@@ -238,38 +238,47 @@ pub enum DockerCommands {
 
 #[derive(Subcommand)]
 pub enum AwsCommands {
-    /// List EC2 instances
+    /// List EC2 instances (uses `aws ec2 describe-instances`)
     Instances {
-        /// AWS profile
+        /// AWS profile name (maps to --profile)
         #[arg(short, long)]
         profile: Option<String>,
-        /// Instance name filter
+        /// Filter instances by Name tag (substring match)
         #[arg(short, long)]
         query: Option<String>,
+        /// AWS region override
+        #[arg(short, long)]
+        region: Option<String>,
     },
     /// SSH to an EC2 instance
     Ssh {
-        /// AWS profile
+        /// AWS profile name
         #[arg(short, long)]
         profile: Option<String>,
-        /// Instance name filter
+        /// Filter instances by Name tag to find the target
         #[arg(short, long)]
         query: Option<String>,
-        /// SSH key file
+        /// AWS region override
         #[arg(short, long)]
-        keyname: Option<String>,
+        region: Option<String>,
+        /// Path to SSH private key file (e.g. ~/.ssh/mykey.pem)
+        #[arg(short, long)]
+        key: Option<String>,
         /// SSH user
         #[arg(short, long, default_value = "ubuntu")]
         user: String,
     },
-    /// Connect to instances behind a load balancer
+    /// List instances behind a load balancer
     Connect {
-        /// AWS profile
+        /// AWS profile name
         #[arg(short, long)]
         profile: Option<String>,
-        /// Load balancer name
+        /// Load balancer name (exact or substring match)
         #[arg(long)]
         lb_name: Option<String>,
+        /// AWS region override
+        #[arg(short, long)]
+        region: Option<String>,
     },
 }
 

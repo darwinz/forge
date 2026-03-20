@@ -1,3 +1,4 @@
+pub mod aws;
 pub mod docker;
 pub mod file_ops;
 pub mod git;

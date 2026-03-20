@@ -781,3 +781,109 @@ fn test_bootstrap_plan_groups_by_source() {
         .success()
         .stdout(predicate::str::contains("[brew]").or(predicate::str::contains("[go]")));
 }
+
+// ---------------------------------------------------------------------------
+// AWS commands
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_aws_bare_shows_help() {
+    forge()
+        .arg("aws")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Usage"));
+}
+
+#[test]
+fn test_aws_help() {
+    forge()
+        .args(["aws", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("instances"))
+        .stdout(predicate::str::contains("ssh"))
+        .stdout(predicate::str::contains("connect"));
+}
+
+#[test]
+fn test_aws_instances_help() {
+    forge()
+        .args(["aws", "instances", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--profile"))
+        .stdout(predicate::str::contains("--query"))
+        .stdout(predicate::str::contains("--region"));
+}
+
+#[test]
+fn test_aws_ssh_help() {
+    forge()
+        .args(["aws", "ssh", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--profile"))
+        .stdout(predicate::str::contains("--query"))
+        .stdout(predicate::str::contains("--key"))
+        .stdout(predicate::str::contains("--user"))
+        .stdout(predicate::str::contains("--region"));
+}
+
+#[test]
+fn test_aws_connect_help() {
+    forge()
+        .args(["aws", "connect", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--profile"))
+        .stdout(predicate::str::contains("--lb-name"))
+        .stdout(predicate::str::contains("--region"));
+}
+
+#[test]
+fn test_aws_instances_dry_run() {
+    forge()
+        .args(["--dry-run", "aws", "instances"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+#[test]
+fn test_aws_instances_dry_run_with_profile() {
+    forge()
+        .args(["--dry-run", "aws", "instances", "--profile", "dev"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("--profile"))
+        .stdout(predicate::str::contains("dev"));
+}
+
+#[test]
+fn test_aws_instances_dry_run_with_query() {
+    forge()
+        .args(["--dry-run", "aws", "instances", "--query", "web"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+#[test]
+fn test_aws_ssh_dry_run() {
+    forge()
+        .args(["--dry-run", "aws", "ssh"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+#[test]
+fn test_aws_connect_dry_run() {
+    forge()
+        .args(["--dry-run", "aws", "connect"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"));
+}
