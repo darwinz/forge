@@ -33,10 +33,11 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Platform notes (vercel, supabase, netlify, render, appwrite) | Done |
 | Platform diagnostics (`forge platform doctor/status`) | Done |
 | `forge vercel` command group (doctor, env-diff, deploy) | Done |
-| `forge supabase` command group (reset, schema diff) | Planned |
+| Skill execution / sandbox | Planned |
+| Terminal UX polish (TTY, dialoguer, spinners, help) | Planned |
+| `forge supabase` command group (doctor, migration-status, reset) | Done |
 | Shell profile management | Planned |
 | Self-update | Planned |
-| Skill execution / sandbox | Planned |
 
 ## Quick start
 
@@ -305,6 +306,29 @@ forge vercel deploy --prod -y   # Skip confirmation
 
 **`forge vercel deploy`** requires confirmation before deploying. Pre-checks that the project is linked. Supports `--dry-run`.
 
+### `forge supabase <command>`
+
+Supabase-specific workflows for local development and migration management.
+
+```bash
+forge supabase doctor                # Check CLI, Docker, project init/link, local stack, migrations
+forge supabase migration-status      # Show local migration files and remote migration state
+forge supabase reset                 # Reset local database (with confirmation)
+forge supabase reset --yes           # Skip confirmation
+```
+
+**`forge supabase doctor`** checks:
+- CLI installed and version
+- Docker daemon running (required for local Supabase)
+- Project initialized (`supabase/config.toml`)
+- Remote project linked (`supabase/.temp/project-ref`)
+- Local stack status (API, DB, Studio services)
+- Local migration file count
+
+**`forge supabase migration-status`** shows local migration files (from `supabase/migrations/`) and remote migration state via `supabase migration list`. Useful for detecting drift between local and remote schemas.
+
+**`forge supabase reset`** wraps `supabase db reset` with explicit confirmation. Destroys all local database data and recreates from migrations. Requires `--yes` to skip the prompt. Supports `--dry-run`.
+
 ### Not yet implemented
 
 These features are planned but not yet available:
@@ -332,7 +356,7 @@ Bundle manifests live in `config/bundles/*.toml`. Git aliases are declared in `c
 ```
 crates/
   forge-core/     # Library: all business logic
-    commands/     # notes, system, file_ops, misc, shell_aliases, docker, git, aws, platform, vercel
+    commands/     # notes, system, file_ops, misc, shell_aliases, docker, git, aws, platform, vercel, supabase
     bundles/      # registry, inventory, sources, installer
     skills/       # metadata, discovery, validation, audit
     config/       # TOML schema and loading
@@ -353,7 +377,7 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (199 tests)
+cargo test                     # Run all tests (215 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 

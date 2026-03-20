@@ -8,7 +8,9 @@ use clap::Parser;
 
 use forge_core::{
     bundles::{installer, ActionKind, BundleInventory, BundleRegistry, EnvironmentScan},
-    commands::{aws, docker, file_ops, git, misc, notes, platform, shell_aliases, system, vercel},
+    commands::{
+        aws, docker, file_ops, git, misc, notes, platform, shell_aliases, supabase, system, vercel,
+    },
     config,
     exec::{CommandRunner, DryRunRunner, RealRunner},
     logging, os,
@@ -91,6 +93,9 @@ fn main() -> Result<()> {
         }
         Commands::Vercel { command } => {
             cmd_vercel(&printer, &*runner, command, cli.dry_run)?;
+        }
+        Commands::Supabase { command } => {
+            cmd_supabase(&printer, &*runner, command, cli.dry_run)?;
         }
         Commands::Git { command } => {
             let config_path = resolve_git_aliases_path(&config);
@@ -1115,6 +1120,171 @@ fn cmd_aws(printer: &Printer, runner: &dyn CommandRunner, command: AwsCommands) 
                 printer.dim(&format!("  {} instance(s)", instances.len()));
                 printer
                     .dim("  Use `forge aws ssh --query <name>` to connect to a specific instance.");
+            }
+            printer.newline();
+        }
+    }
+    Ok(())
+}
+
+// --- Supabase ---
+
+fn cmd_supabase(
+    printer: &Printer,
+    runner: &dyn CommandRunner,
+    command: SupabaseCommands,
+    dry_run: bool,
+) -> Result<()> {
+    match command {
+        SupabaseCommands::Doctor => {
+            let result = supabase::doctor(runner);
+
+            printer.newline();
+            printer.heading("Supabase doctor:");
+            printer.newline();
+
+            // CLI
+            if result.cli_installed {
+                let ver = result.cli_version.as_deref().unwrap_or("unknown");
+                printer.package_state(&format!("CLI: {ver}"), "installed");
+            } else {
+                printer.package_state("CLI: not installed", "missing");
+                // No point continuing
+                if !result.suggestions.is_empty() {
+                    printer.newline();
+                    for s in &result.suggestions {
+                        printer.dim(&format!("    {s}"));
+                    }
+                }
+                printer.newline();
+                return Ok(());
+            }
+
+            // Docker
+            if result.docker_running {
+                printer.package_state("Docker: running", "installed");
+            } else {
+                printer.package_state("Docker: not running", "missing");
+            }
+
+            // Project init
+            if result.project_initialized {
+                printer.package_state("Project: initialized (supabase/config.toml)", "installed");
+            } else {
+                printer.package_state("Project: not initialized", "missing");
+            }
+
+            // Project link
+            if result.project_linked {
+                printer.package_state("Remote: linked", "installed");
+            } else if result.project_initialized {
+                printer.package_state("Remote: not linked", "missing");
+            }
+
+            // Local stack
+            if result.local_running {
+                let status = result.local_status.as_deref().unwrap_or("running");
+                printer.package_state(&format!("Local stack: {status}"), "installed");
+            } else if result.docker_running && result.project_initialized {
+                printer.package_state("Local stack: not running", "missing");
+            }
+
+            // Migrations
+            if result.project_initialized {
+                printer.dim(&format!(
+                    "    Migrations: {} local file(s)",
+                    result.migration_count
+                ));
+            }
+
+            // Issues
+            if !result.issues.is_empty() {
+                printer.newline();
+                printer.bold("  Issues:");
+                for issue in &result.issues {
+                    println!("    {issue}");
+                }
+            }
+
+            // Suggestions
+            if !result.suggestions.is_empty() {
+                printer.newline();
+                printer.bold("  Suggestions:");
+                for suggestion in &result.suggestions {
+                    println!("    {suggestion}");
+                }
+            }
+
+            printer.newline();
+        }
+
+        SupabaseCommands::MigrationStatus => {
+            printer.newline();
+            printer.heading("Supabase migration status:");
+            printer.newline();
+
+            // Local migrations
+            let local = supabase::list_local_migrations();
+            printer.bold(&format!("  Local migrations ({}):", local.len()));
+            printer.print(&supabase::format_local_migrations(&local));
+            printer.newline();
+
+            // Remote status
+            printer.bold("  Remote migration status:");
+            match supabase::remote_migration_status(runner) {
+                Ok(output) if !output.is_empty() => {
+                    for line in output.lines() {
+                        println!("  {line}");
+                    }
+                }
+                Ok(_) => {
+                    // dry-run or empty
+                    if runner.is_dry_run() {
+                        printer.dim("    [dry-run] Remote status not checked.");
+                    } else {
+                        printer.dim("    No remote migration data available.");
+                    }
+                }
+                Err(e) => {
+                    printer.dim(&format!("    Could not fetch remote status: {e}"));
+                    printer.dim("    Ensure you are linked: supabase link --project-ref <ref>");
+                }
+            }
+            printer.newline();
+        }
+
+        SupabaseCommands::Reset { yes } => {
+            printer.newline();
+            printer.heading("Supabase local database reset:");
+            printer.newline();
+
+            if dry_run {
+                printer.dim("[dry-run] Would execute: supabase db reset");
+                printer.newline();
+                return Ok(());
+            }
+
+            printer.warning("  This will destroy all data in the local Supabase database.");
+            printer
+                .warning("  All tables, data, and local state will be recreated from migrations.");
+            printer.newline();
+
+            if !yes && !confirm_destructive(printer, "Reset local Supabase database?")? {
+                printer.dim("Aborted.");
+                printer.newline();
+                return Ok(());
+            }
+
+            printer.dim("  Resetting...");
+            match supabase::reset_local_db(runner) {
+                Ok(msg) => {
+                    printer.newline();
+                    printer.success(&format!("  {msg}"));
+                }
+                Err(e) => {
+                    printer.newline();
+                    printer.error(&format!("  Reset failed: {e}"));
+                }
             }
             printer.newline();
         }

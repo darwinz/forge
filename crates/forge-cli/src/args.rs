@@ -81,6 +81,13 @@ pub enum Commands {
         command: VercelCommands,
     },
 
+    /// Supabase workflows — doctor, migration status, local reset
+    #[command(arg_required_else_help = true)]
+    Supabase {
+        #[command(subcommand)]
+        command: SupabaseCommands,
+    },
+
     /// Miscellaneous utilities
     #[command(arg_required_else_help = true)]
     Misc {
@@ -317,6 +324,20 @@ pub enum VercelCommands {
         /// Deploy to production (default is preview)
         #[arg(long)]
         prod: bool,
+        /// Skip confirmation prompt
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum SupabaseCommands {
+    /// Check Supabase CLI installation, Docker, project link, and local stack status
+    Doctor,
+    /// Show local migration files and remote migration status
+    MigrationStatus,
+    /// Reset local database to clean state (requires confirmation)
+    Reset {
         /// Skip confirmation prompt
         #[arg(long, short = 'y')]
         yes: bool,

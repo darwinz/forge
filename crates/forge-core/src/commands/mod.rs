@@ -6,5 +6,6 @@ pub mod misc;
 pub mod notes;
 pub mod platform;
 pub mod shell_aliases;
+pub mod supabase;
 pub mod system;
 pub mod vercel;

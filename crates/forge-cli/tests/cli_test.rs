@@ -1180,3 +1180,85 @@ fn test_vercel_deploy_has_yes_flag() {
         .stdout(predicate::str::contains("-y"))
         .stdout(predicate::str::contains("--prod"));
 }
+
+// ---------------------------------------------------------------------------
+// Supabase commands
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_supabase_bare_shows_help() {
+    forge()
+        .arg("supabase")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Usage"));
+}
+
+#[test]
+fn test_supabase_help() {
+    forge()
+        .args(["supabase", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("doctor"))
+        .stdout(predicate::str::contains("migration-status"))
+        .stdout(predicate::str::contains("reset"));
+}
+
+#[test]
+fn test_supabase_doctor() {
+    forge()
+        .args(["supabase", "doctor"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Supabase doctor"));
+}
+
+#[test]
+fn test_supabase_doctor_dry_run() {
+    forge()
+        .args(["--dry-run", "supabase", "doctor"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Supabase doctor"))
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+#[test]
+fn test_supabase_migration_status() {
+    forge()
+        .args(["supabase", "migration-status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("migration status"));
+}
+
+#[test]
+fn test_supabase_migration_status_dry_run() {
+    forge()
+        .args(["--dry-run", "supabase", "migration-status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("migration status"))
+        .stdout(predicate::str::contains("[dry-run]"));
+}
+
+#[test]
+fn test_supabase_reset_dry_run() {
+    forge()
+        .args(["--dry-run", "supabase", "reset"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("supabase db reset"));
+}
+
+#[test]
+fn test_supabase_reset_has_yes_flag() {
+    forge()
+        .args(["supabase", "reset", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--yes"))
+        .stdout(predicate::str::contains("-y"));
+}
