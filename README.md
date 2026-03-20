@@ -74,7 +74,7 @@ The binary is at `target/release/forge`. No system-wide install step is required
 
 ### `forge notes [topic]`
 
-Built-in cheatsheets for tools you use but don't memorize. 28 topics covering Kubernetes, Terraform, Helm, Docker, Git, Neovim, Claude Code, Codex, and more.
+Built-in cheatsheets for tools you use but don't memorize. 33 topics covering Kubernetes, Terraform, Helm, Docker, Git, Neovim, Claude Code, Codex, Vercel, Supabase, Netlify, and more.
 
 ```bash
 forge notes              # List all topics
@@ -141,13 +141,19 @@ forge bootstrap --status                # Package inventory: installed vs expect
 forge bootstrap --status --format json  # Machine-readable output
 forge bootstrap --scan                  # Scan for tools beyond bundles
 
-# Installation (brew, brew cask, npm)
+# Installation
 forge bootstrap                         # Install default profile bundles
 forge bootstrap --bundles core,go,node  # Install specific bundles
 forge bootstrap --add ai-tools          # Add one bundle
 forge bootstrap --all                   # Install everything
 forge bootstrap --dry-run               # Preview without installing
 forge bootstrap --yes                   # Skip confirmation prompt
+
+# Bundle editing
+forge bootstrap --add-package htop --source brew --to-bundle core
+forge bootstrap --add-package tsx --source npm --to-bundle node
+forge bootstrap --add-package mytool --source manual --to-bundle devops \
+  --instructions "Download from https://example.com"
 ```
 
 **Bundle tiers:**
@@ -178,19 +184,37 @@ Each package is installed individually so failures are reported accurately per-p
 
 ### `forge skill`
 
-AI skills subsystem. v1 is metadata and management only — no execution.
+Skills subsystem — template and transform execution with trust controls.
 
 ```bash
+# Discovery and inspection
 forge skill list                  # List discovered skills
-forge skill list --tag refactoring  # Filter by tag
+forge skill list --tag scaffold   # Filter by tag
 forge skill info <name>           # Full skill metadata
 forge skill validate --all        # Validate all manifests
-forge skill validate <name>       # Validate one skill
-forge skill link ./my-skill       # Symlink for development
-forge skill audit                 # View audit log (empty until execution is added)
+forge skill doctor                # Check health, trust, execution support
+
+# Execution
+forge skill run <name> --dry-run              # Preview what would happen
+forge skill run <name> --input key=value      # Run with explicit inputs
+forge skill run <name>                        # Run (prompts for missing inputs)
+
+# Trust management
+forge skill trust <name>          # Trust a repo-scoped skill for writes
+forge skill revoke <name>         # Revoke trust
+
+# Audit
+forge skill audit                 # View execution history
+forge skill audit --skill <name>  # Filter by skill
+forge skill audit --action run    # Filter by action
+
+# Development
+forge skill init <name>           # Scaffold a new skill
+forge skill init <name> --skill-type transform  # Scaffold a transform skill
+forge skill link ./my-skill       # Symlink into ~/.forge/skills/
 ```
 
-Skills are discovered from `~/.forge/skills/` (user-global) and `.forge/skills/` (repo-scoped). Each skill has a `skill.toml` manifest defining inputs, permissions, and execution type.
+Skills are discovered from `~/.forge/skills/` (user-global) and `.forge/skills/` (repo-scoped). V1 supports `template` and `transform` execution types. Script/binary/wasm execution is deferred. See `examples/skills/` for working examples.
 
 ### `forge shell generate-aliases`
 
@@ -379,7 +403,7 @@ crates/
   forge-core/     # Library: all business logic
     commands/     # notes, system, file_ops, misc, shell_aliases, docker, git, aws, platform, vercel, supabase, netlify
     bundles/      # registry, inventory, sources, installer
-    skills/       # metadata, discovery, validation, audit
+    skills/       # metadata, discovery, validation, execution, audit
     config/       # TOML schema and loading
     os/           # OsPlatform trait (macOS, Linux)
     exec/         # CommandRunner trait (real, dry-run)
