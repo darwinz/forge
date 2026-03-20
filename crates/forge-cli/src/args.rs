@@ -440,7 +440,18 @@ pub enum SkillCommands {
         #[arg(long)]
         all: bool,
     },
-    /// Symlink a local skill for development
+    /// Scaffold a new skill directory
+    Init {
+        /// Skill name
+        name: String,
+        /// Skill type: template or transform
+        #[arg(long, default_value = "template")]
+        skill_type: String,
+        /// Output directory (default: current directory)
+        #[arg(long, short = 'o')]
+        output: Option<String>,
+    },
+    /// Symlink a local skill into ~/.forge/skills/ for development
     Link {
         /// Path to skill directory
         path: String,

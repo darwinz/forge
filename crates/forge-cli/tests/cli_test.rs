@@ -299,7 +299,7 @@ fn test_skill_revoke_help() {
 }
 
 #[test]
-fn test_skill_help_includes_run() {
+fn test_skill_help_includes_all_commands() {
     forge()
         .args(["skill", "--help"])
         .assert()
@@ -308,7 +308,78 @@ fn test_skill_help_includes_run() {
         .stdout(predicate::str::contains("trust"))
         .stdout(predicate::str::contains("revoke"))
         .stdout(predicate::str::contains("doctor"))
-        .stdout(predicate::str::contains("audit"));
+        .stdout(predicate::str::contains("audit"))
+        .stdout(predicate::str::contains("init"))
+        .stdout(predicate::str::contains("link"));
+}
+
+#[test]
+fn test_skill_init_template_dry_run() {
+    forge()
+        .args(["--dry-run", "skill", "init", "my-test-skill"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("skill.toml"));
+}
+
+#[test]
+fn test_skill_init_transform_dry_run() {
+    forge()
+        .args([
+            "--dry-run",
+            "skill",
+            "init",
+            "my-transform",
+            "--skill-type",
+            "transform",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("skill.toml"));
+}
+
+#[test]
+fn test_skill_init_invalid_type() {
+    forge()
+        .args(["skill", "init", "bad-skill", "--skill-type", "script"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Unknown skill type"));
+}
+
+#[test]
+fn test_skill_init_help() {
+    forge()
+        .args(["skill", "init", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--skill-type"))
+        .stdout(predicate::str::contains("--output"));
+}
+
+#[test]
+fn test_skill_link_no_skill_toml() {
+    forge()
+        .args(["skill", "link", "/tmp"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("No skill.toml"));
+}
+
+#[test]
+fn test_skill_run_missing_input_noninteractive() {
+    // When piped (non-interactive), missing required inputs should fail clearly
+    // This test runs in a test harness which is non-interactive
+    forge()
+        .args(["skill", "run", "scaffold-api"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("Missing required inputs")
+                .or(predicate::str::contains("not found")),
+        );
 }
 
 #[test]
