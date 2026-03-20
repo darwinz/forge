@@ -1,6 +1,6 @@
 [bundle]
 name = "go"
-description = "Go development — goenv, language server, linters, debugger"
+description = "Go development — goenv, language server, linters, debugger, REPL"
 tier = "role"
 
 [brew]
@@ -8,12 +8,28 @@ formulae = ["goenv", "gojq"]
 
 [go]
 tools = [
+  # Language server + debugger
   "golang.org/x/tools/gopls@latest",
   "github.com/go-delve/delve/cmd/dlv@latest",
+
+  # Linting + formatting
   "github.com/golangci/golangci-lint/cmd/golangci-lint@latest",
   "mvdan.cc/gofumpt@latest",
   "golang.org/x/tools/cmd/goimports@latest",
+  "github.com/segmentio/golines@latest",
+
+  # Testing
   "github.com/cweill/gotests/gotests@latest",
   "gotest.tools/gotestsum@latest",
+
+  # Code generation + refactoring
+  "github.com/fatih/gomodifytags@latest",
+  "github.com/josharian/impl@latest",
+  "go.uber.org/mock/mockgen@latest",
+
+  # Security
   "golang.org/x/vuln/cmd/govulncheck@latest",
+
+  # REPL
+  "github.com/x-motemen/gore/cmd/gore@latest",
 ]
