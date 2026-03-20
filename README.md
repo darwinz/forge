@@ -26,7 +26,9 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Bootstrap install (brew, brew cask, npm) | Done |
 | Skills subsystem (metadata, discovery, validation) | Done (no execution) |
 | `--dry-run` across all commands | Done |
-| Docker, AWS, Git alias commands | Planned |
+| Docker utilities (host, images, ps, rm with guards) | Done |
+| Git alias management (declarative TOML config) | Done |
+| AWS commands | Planned |
 | Shell profile management | Planned |
 | Self-update | Planned |
 | Skill execution / sandbox | Planned |
@@ -172,13 +174,41 @@ forge shell generate-aliases > aliases.sh # Save to file
 
 Includes aliases for ls, kubectl, bundler, SSH, system monitoring, and macOS-specific utilities.
 
+### `forge docker <command>`
+
+Docker utilities with safety guards on destructive operations.
+
+```bash
+forge docker host              # Show DOCKER_HOST (or "not set")
+forge docker images            # List images
+forge docker ps                # List all containers
+forge docker rm-images         # Remove all images (requires confirmation)
+forge docker rm-images --yes   # Skip confirmation
+forge docker rm-containers     # Remove all containers (requires confirmation)
+forge docker rm-containers -y  # Skip confirmation
+forge docker rm-by-filter "status=exited"      # Remove filtered containers
+forge docker rm-by-filter "name=myapp" --yes   # Skip confirmation
+```
+
+All destructive commands (`rm-images`, `rm-containers`, `rm-by-filter`) require interactive confirmation unless `--yes`/`-y` is passed. In `--dry-run` mode, the docker commands are printed but never executed.
+
+### `forge git <command>`
+
+Git alias management from a declarative TOML config (`config/git-aliases.toml`).
+
+```bash
+forge git list-aliases          # Show all configured aliases
+forge git setup-aliases         # Preview diff and apply to git config --global
+forge --dry-run git setup-aliases  # Preview only, no changes
+```
+
+`setup-aliases` compares the config file against your current `git config --global`, shows a diff (adds, changes, unchanged), and applies only after confirmation. In `--dry-run` mode, the preview is shown but nothing is written.
+
 ### Not yet implemented
 
 These command groups are defined in the CLI but return placeholder messages:
 
-- `forge docker` — Docker utilities (Phase 3)
 - `forge aws` — AWS operations (Phase 5)
-- `forge git` — Git alias management (Phase 3)
 
 ## Global options
 
@@ -203,7 +233,7 @@ Bundle manifests live in `config/bundles/*.toml`. Git aliases are declared in `c
 ```
 crates/
   forge-core/     # Library: all business logic
-    commands/     # notes, system, file_ops, misc, shell_aliases
+    commands/     # notes, system, file_ops, misc, shell_aliases, docker, git
     bundles/      # registry, inventory, sources, installer
     skills/       # metadata, discovery, validation, audit
     config/       # TOML schema and loading
@@ -224,11 +254,11 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (81 tests)
+cargo test                     # Run all tests (104 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 
-Tests cover CLI integration (help output, dry-run behavior, notes content, bootstrap planning) and unit tests (parsers for npm, pnpm, pipx, uv, bun, composer, asdf, mise output formats, definition formatting, alias generation).
+Tests cover CLI integration (help output, dry-run behavior, notes content, bootstrap planning, docker dry-run/guards, git alias listing/setup) and unit tests (parsers for npm, pnpm, pipx, uv, bun, composer, asdf, mise output formats, definition formatting, alias generation, git alias TOML parsing/diffing).
 
 ## Migration from mycli
 

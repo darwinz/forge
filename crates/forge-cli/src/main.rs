@@ -10,7 +10,7 @@ use forge_core::{
     bundles::{
         installer, ActionKind, BundleInventory, BundleRegistry, EnvironmentScan,
     },
-    commands::{notes, system, file_ops, misc, shell_aliases},
+    commands::{notes, system, file_ops, misc, shell_aliases, docker, git},
     config,
     exec::{CommandRunner, DryRunRunner, RealRunner},
     logging,
@@ -76,14 +76,15 @@ fn main() -> Result<()> {
             cmd_skill(&printer, command, &user_dir, repo_dir.as_deref(), &config)?;
         }
         Commands::File { command } => cmd_file(&printer, &*runner, command)?,
-        Commands::Docker { .. } => {
-            printer.dim("Docker commands not yet implemented (Phase 3).");
+        Commands::Docker { command } => {
+            cmd_docker(&printer, &*runner, command, cli.dry_run)?;
         }
         Commands::Aws { .. } => {
             printer.dim("AWS commands not yet implemented (Phase 5).");
         }
-        Commands::Git { .. } => {
-            printer.dim("Git commands not yet implemented (Phase 3).");
+        Commands::Git { command } => {
+            let config_path = resolve_git_aliases_path(&config);
+            cmd_git(&printer, &*runner, command, &config_path, cli.dry_run)?;
         }
         Commands::Misc { command } => cmd_misc(&printer, &*runner, command)?,
         Commands::Shell { command } => cmd_shell(&printer, command)?,
@@ -812,6 +813,201 @@ fn cmd_shell(printer: &Printer, command: ShellCommands) -> Result<()> {
             // Pure stdout output — no file writes
             let output = shell_aliases::generate_aliases();
             printer.print(&output);
+        }
+    }
+    Ok(())
+}
+
+// --- Docker ---
+
+fn cmd_docker(
+    printer: &Printer,
+    runner: &dyn CommandRunner,
+    command: DockerCommands,
+    dry_run: bool,
+) -> Result<()> {
+    match command {
+        DockerCommands::Host => {
+            printer.print(&docker::docker_host());
+        }
+        DockerCommands::Images => {
+            let output = docker::docker_images(runner)?;
+            if !output.is_empty() {
+                printer.print(&output);
+            }
+        }
+        DockerCommands::Ps => {
+            let output = docker::docker_ps(runner)?;
+            if !output.is_empty() {
+                printer.print(&output);
+            }
+        }
+        DockerCommands::RmImages { yes } => {
+            if !dry_run && !yes {
+                if !confirm_destructive(printer, "Remove ALL docker images?")? {
+                    printer.dim("Aborted.");
+                    return Ok(());
+                }
+            }
+            let output = docker::docker_rm_images(runner)?;
+            if !output.is_empty() {
+                printer.print(&output);
+            }
+        }
+        DockerCommands::RmContainers { yes } => {
+            if !dry_run && !yes {
+                if !confirm_destructive(printer, "Remove ALL docker containers?")? {
+                    printer.dim("Aborted.");
+                    return Ok(());
+                }
+            }
+            let output = docker::docker_rm_containers(runner)?;
+            if !output.is_empty() {
+                printer.print(&output);
+            }
+        }
+        DockerCommands::RmByFilter { filter, yes } => {
+            if !dry_run && !yes {
+                if !confirm_destructive(
+                    printer,
+                    &format!("Remove containers matching filter '{filter}'?"),
+                )? {
+                    printer.dim("Aborted.");
+                    return Ok(());
+                }
+            }
+            let output = docker::docker_rm_by_filter(runner, &filter)?;
+            if !output.is_empty() {
+                printer.print(&output);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Prompt user for confirmation before a destructive operation.
+fn confirm_destructive(_printer: &Printer, message: &str) -> Result<bool> {
+    eprint!("{message} [y/N] ");
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .context("failed to read stdin")?;
+    let answer = input.trim().to_lowercase();
+    Ok(answer == "y" || answer == "yes")
+}
+
+// --- Git ---
+
+fn resolve_git_aliases_path(config: &config::ForgeConfig) -> PathBuf {
+    // Try config/git-aliases.toml relative to the project
+    let default = "config/git-aliases.toml";
+    let path = PathBuf::from(default);
+    if path.exists() {
+        return path;
+    }
+
+    // Try relative to the executable's project root
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let project_root = Path::new(manifest_dir).parent().and_then(|p| p.parent());
+    if let Some(root) = project_root {
+        let candidate = root.join(default);
+        if candidate.exists() {
+            return candidate;
+        }
+    }
+
+    // Fallback: check if user set a custom path in config
+    let _ = config; // reserved for future config.git.aliases_file
+    path
+}
+
+fn cmd_git(
+    printer: &Printer,
+    runner: &dyn CommandRunner,
+    command: GitCommands,
+    aliases_path: &Path,
+    dry_run: bool,
+) -> Result<()> {
+    match command {
+        GitCommands::ListAliases => {
+            let aliases = git::load_aliases(aliases_path)
+                .context("failed to load git aliases config")?;
+            printer.newline();
+            printer.heading("Configured git aliases:");
+            printer.newline();
+            printer.print(&git::format_aliases(&aliases));
+            printer.newline();
+            printer.dim(&format!("  Source: {}", aliases_path.display()));
+            printer.newline();
+        }
+        GitCommands::SetupAliases => {
+            let aliases = git::load_aliases(aliases_path)
+                .context("failed to load git aliases config")?;
+
+            if aliases.is_empty() {
+                printer.dim("No aliases found in config.");
+                return Ok(());
+            }
+
+            // Show diff preview
+            let (to_add, to_change, unchanged) = git::diff_aliases(runner, &aliases)?;
+
+            printer.newline();
+            printer.heading("Git alias setup preview:");
+            printer.newline();
+
+            if !to_add.is_empty() {
+                printer.bold(&format!("  Will add {} alias(es):", to_add.len()));
+                for alias in &to_add {
+                    println!("    + git {} → {}", alias.name, alias.value);
+                }
+            }
+
+            if !to_change.is_empty() {
+                printer.newline();
+                printer.bold(&format!("  Will update {} alias(es):", to_change.len()));
+                for (alias, old_val) in &to_change {
+                    println!("    ~ git {} : {} → {}", alias.name, old_val, alias.value);
+                }
+            }
+
+            if !unchanged.is_empty() {
+                printer.newline();
+                printer.dim(&format!("  Already up-to-date: {} alias(es)", unchanged.len()));
+            }
+
+            printer.newline();
+
+            if to_add.is_empty() && to_change.is_empty() {
+                printer.success("All aliases are already up-to-date.");
+                return Ok(());
+            }
+
+            // Dry-run stops here
+            if dry_run {
+                printer.dim("[dry-run] No aliases will be applied.");
+                return Ok(());
+            }
+
+            // Collect aliases to apply
+            let mut to_apply: Vec<git::GitAlias> = to_add;
+            to_apply.extend(to_change.into_iter().map(|(alias, _)| alias));
+
+            let results = git::apply_aliases(runner, &to_apply)?;
+
+            let succeeded: Vec<_> = results.iter().filter(|r| r.success).collect();
+            let failed: Vec<_> = results.iter().filter(|r| !r.success).collect();
+
+            if !succeeded.is_empty() {
+                printer.success(&format!("  Applied {} alias(es).", succeeded.len()));
+            }
+            if !failed.is_empty() {
+                printer.error(&format!("  Failed {} alias(es):", failed.len()));
+                for r in &failed {
+                    println!("    {} — failed to set", r.name);
+                }
+            }
+            printer.newline();
         }
     }
     Ok(())

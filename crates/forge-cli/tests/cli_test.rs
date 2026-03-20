@@ -543,10 +543,185 @@ fn test_unimplemented_commands_show_message() {
         .assert()
         .success()
         .stdout(predicate::str::contains("not yet implemented"));
+}
 
+// ---------------------------------------------------------------------------
+// Docker commands
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_docker_bare_shows_help() {
+    forge()
+        .arg("docker")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Usage"));
+}
+
+#[test]
+fn test_docker_help() {
+    forge()
+        .args(["docker", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("host"))
+        .stdout(predicate::str::contains("images"))
+        .stdout(predicate::str::contains("ps"))
+        .stdout(predicate::str::contains("rm-images"))
+        .stdout(predicate::str::contains("rm-containers"))
+        .stdout(predicate::str::contains("rm-by-filter"));
+}
+
+#[test]
+fn test_docker_host() {
+    // Should always succeed — just shows DOCKER_HOST or "not set"
     forge()
         .args(["docker", "host"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("not yet implemented"));
+        .stdout(predicate::str::contains("DOCKER_HOST"));
+}
+
+#[test]
+fn test_docker_images_dry_run() {
+    forge()
+        .args(["--dry-run", "docker", "images"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("docker images"));
+}
+
+#[test]
+fn test_docker_ps_dry_run() {
+    forge()
+        .args(["--dry-run", "docker", "ps"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("docker ps"));
+}
+
+#[test]
+fn test_docker_rm_images_dry_run() {
+    forge()
+        .args(["--dry-run", "docker", "rm-images"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("docker images"));
+}
+
+#[test]
+fn test_docker_rm_containers_dry_run() {
+    forge()
+        .args(["--dry-run", "docker", "rm-containers"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("docker ps"));
+}
+
+#[test]
+fn test_docker_rm_by_filter_dry_run() {
+    forge()
+        .args(["--dry-run", "docker", "rm-by-filter", "status=exited"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("docker ps"));
+}
+
+#[test]
+fn test_docker_rm_images_has_yes_flag() {
+    forge()
+        .args(["docker", "rm-images", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--yes"))
+        .stdout(predicate::str::contains("-y"));
+}
+
+#[test]
+fn test_docker_rm_containers_has_yes_flag() {
+    forge()
+        .args(["docker", "rm-containers", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--yes"))
+        .stdout(predicate::str::contains("-y"));
+}
+
+#[test]
+fn test_docker_rm_by_filter_has_yes_flag() {
+    forge()
+        .args(["docker", "rm-by-filter", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--yes"))
+        .stdout(predicate::str::contains("-y"));
+}
+
+// ---------------------------------------------------------------------------
+// Git commands
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_git_bare_shows_help() {
+    forge()
+        .arg("git")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Usage"));
+}
+
+#[test]
+fn test_git_help() {
+    forge()
+        .args(["git", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("setup-aliases"))
+        .stdout(predicate::str::contains("list-aliases"));
+}
+
+#[test]
+fn test_git_list_aliases() {
+    forge()
+        .args(["git", "list-aliases"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Configured git aliases"))
+        .stdout(predicate::str::contains("git co"))
+        .stdout(predicate::str::contains("checkout"));
+}
+
+#[test]
+fn test_git_list_aliases_shows_source() {
+    forge()
+        .args(["git", "list-aliases"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("git-aliases.toml"));
+}
+
+#[test]
+fn test_git_setup_aliases_dry_run() {
+    forge()
+        .args(["--dry-run", "git", "setup-aliases"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"))
+        .stdout(predicate::str::contains("preview"));
+}
+
+#[test]
+fn test_git_setup_aliases_dry_run_shows_preview() {
+    // In dry-run mode, git config isn't queried, so all aliases show as "to add"
+    forge()
+        .args(["--dry-run", "git", "setup-aliases"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Will add"))
+        .stdout(predicate::str::contains("[dry-run]"));
 }

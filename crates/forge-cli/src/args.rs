@@ -208,20 +208,31 @@ pub enum FileCommands {
 
 #[derive(Subcommand)]
 pub enum DockerCommands {
-    /// Show DOCKER_HOST
+    /// Show DOCKER_HOST environment variable
     Host,
-    /// List images
+    /// List docker images
     Images,
-    /// List containers
+    /// List running and stopped containers
     Ps,
-    /// Remove all images
-    RmImages,
-    /// Remove all containers
-    RmContainers,
-    /// Remove containers by filter
+    /// Remove all docker images (requires confirmation)
+    RmImages {
+        /// Skip confirmation prompt
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
+    /// Remove all docker containers (requires confirmation)
+    RmContainers {
+        /// Skip confirmation prompt
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
+    /// Remove containers matching a docker filter (requires confirmation)
     RmByFilter {
-        /// Filter string
+        /// Docker filter expression (e.g. "status=exited", "name=myapp")
         filter: String,
+        /// Skip confirmation prompt
+        #[arg(long, short = 'y')]
+        yes: bool,
     },
 }
 
