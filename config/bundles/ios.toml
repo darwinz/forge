@@ -1,0 +1,7 @@
+[bundle]
+name = "ios"
+description = "iOS development — CocoaPods"
+tier = "experimental"
+
+[gem]
+packages = ["cocoapods"]

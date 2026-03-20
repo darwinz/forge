@@ -1,0 +1,3 @@
+# Default bundles for `forge bootstrap` with no arguments.
+# Override per-machine with `forge bootstrap --bundles core,node,go`
+bundles = ["core", "git", "node", "python", "editors"]

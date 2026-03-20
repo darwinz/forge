@@ -1,0 +1,8 @@
+[bundle]
+name = "editors"
+description = "Code editors and terminal tools"
+tier = "experimental"
+
+[brew]
+formulae = ["neovim", "ctags"]
+casks = ["visual-studio-code", "cursor"]

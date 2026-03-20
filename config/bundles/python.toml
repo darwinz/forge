@@ -1,0 +1,7 @@
+[bundle]
+name = "python"
+description = "Python development — pyenv, uv, virtualenv"
+tier = "role"
+
+[brew]
+formulae = ["pyenv", "pyenv-virtualenv", "uv"]

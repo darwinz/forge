@@ -1,0 +1,19 @@
+[bundle]
+name = "ai-tools"
+description = "AI development CLIs — inventory and recommendations"
+tier = "ai-tools"
+
+[npm]
+packages = ["@google/gemini-cli", "@openai/codex"]
+
+[[manual]]
+name = "claude"
+check_command = "claude --version"
+install_instructions = "Install from https://docs.anthropic.com/en/docs/claude-code"
+notes = "Requires Anthropic account and API key"
+
+[[manual]]
+name = "firecrawl-cli"
+check_command = "firecrawl --version"
+install_instructions = "npm install -g firecrawl-cli"
+notes = "Requires Firecrawl API key"

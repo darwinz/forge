@@ -1,0 +1,25 @@
+# Forge CLI default configuration
+
+[general]
+# Verbosity level: "warn", "info", "debug", "trace"
+log_level = "warn"
+
+[shell]
+# Shell type: "zsh", "bash", "fish"
+type = "zsh"
+
+[bootstrap]
+# Default bundles to install when no --bundles flag is provided
+default_profile = "config/default-profile.toml"
+# Bundle manifest directory
+bundle_dir = "config/bundles"
+
+[skills]
+# Skill discovery paths (in priority order, later wins)
+# Built-in skills ship with the binary
+# User-global: ~/.forge/skills/*/skill.toml
+# Repo-scoped: .forge/skills/*/skill.toml
+user_dir = "~/.forge/skills"
+repo_dir = ".forge/skills"
+# Audit log location
+audit_log = "~/.forge/audit/skills.jsonl"

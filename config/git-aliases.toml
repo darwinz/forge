@@ -1,0 +1,77 @@
+# Git aliases managed by forge
+# Run `forge git setup-aliases` to apply these to your global git config
+# Run `forge git list-aliases` to view them
+
+[aliases]
+# Logging
+l = 'log --pretty=format:"%C(yellow)%h\\ %ad%Cred%d\\ %Creset%s%Cblue\\ [%cn]" --decorate --date=short'
+lg = 'log --color --graph --pretty=format:"%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset" --abbrev-commit'
+tlog = 'log --stat --since="1 Day Ago" --graph --pretty=oneline --abbrev-commit --date=relative'
+rp = "rev-parse"
+
+# Adding/Committing
+a = "add"
+ap = "add -p"
+c = "commit --verbose"
+ca = "commit -a --verbose"
+cm = "commit -m"
+cam = "commit -a -m"
+cma = "commit --amend --no-edit -m"
+m = "commit --amend --verbose"
+
+# Diffing
+d = "diff"
+ds = "diff --stat"
+dc = "diff --cached"
+dl = "!git ll -1"
+dlc = "diff --cached HEAD^"
+
+# Status/Checkout
+s = "status -s"
+sh = "show"
+co = "checkout"
+cob = "checkout -b"
+
+# Branch management
+ba = "branch -a"
+bd = "branch -d"
+bD = "branch -D"
+bdm = '!git branch --merged | grep -v "*" | xargs -n 1 git branch -d'
+b = "!git for-each-ref --sort='-authordate' --format='%(authordate)%09%(objectname:short)%09%(refname)' refs/heads | sed -e 's-refs/heads/--'"
+
+# Squash/Pull/Push
+sq = "rebase -i"
+pl = "pull"
+pu = "push"
+puf = "push --force-with-lease"
+st = "status -sb"
+
+# Cleanup
+cf = "clean -f"
+cdf = "clean -d -f"
+
+# Contributors
+rank = "shortlog -sn --no-merges"
+
+# PR aliases (GitHub CLI)
+prc = "!gh pr create -f"
+prl = "!gh pr list"
+
+# Listing
+la = "!git config -l | grep alias | cut -c 7-"
+cbb = "!git for-each-ref --sort=-committerdate refs/heads/ --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(color:red)%(objectname:short)%(color:reset) - %(contents:subject) - %(authorname) (%(color:green)%(committerdate:relative)%(color:reset))'"
+
+# Tags
+tl = "tag -l"
+tls = "tag -l --sort=-v:refname"
+dt = "describe --tags --abbrev=0"
+
+# Git Flow
+ffs = "!git flow feature start"
+fff = "!git flow feature finish"
+frs = "!git flow release start"
+frf = "!git flow release finish"
+
+# Traversal
+root = "rev-parse --show-toplevel"
+hub = "!hub"

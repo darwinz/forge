@@ -1,0 +1,13 @@
+[bundle]
+name = "core"
+description = "Minimal dev environment — shell tools, search, system utilities"
+tier = "core"
+required = true
+
+[brew]
+formulae = [
+  "bat", "coreutils", "curl", "dust", "fd", "fzf", "grep",
+  "jq", "just", "lsd", "ncdu", "ripgrep", "sd", "tldr",
+  "tmux", "watch", "wget", "zoxide", "oh-my-posh",
+]
+casks = ["font-hack-nerd-font"]

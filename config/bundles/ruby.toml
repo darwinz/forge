@@ -1,0 +1,7 @@
+[bundle]
+name = "ruby"
+description = "Ruby development — rbenv, ruby-build"
+tier = "role"
+
+[brew]
+formulae = ["rbenv", "ruby-build"]

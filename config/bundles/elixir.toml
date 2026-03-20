@@ -1,0 +1,7 @@
+[bundle]
+name = "elixir"
+description = "Elixir/Erlang development"
+tier = "experimental"
+
+[brew]
+formulae = ["elixir", "erlang"]

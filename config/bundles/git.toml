@@ -1,0 +1,10 @@
+[bundle]
+name = "git"
+description = "Git — aliases, flow, interactive tools"
+tier = "role"
+
+[brew]
+formulae = ["git", "git-flow", "gh", "hub", "forgit"]
+
+[git_aliases]
+file = "config/git-aliases.toml"

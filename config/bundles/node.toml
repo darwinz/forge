@@ -1,0 +1,10 @@
+[bundle]
+name = "node"
+description = "Node.js development — essential global CLI tools only"
+tier = "role"
+
+[brew]
+formulae = ["node", "yarn"]
+
+[npm]
+packages = ["typescript", "eslint", "prettier", "nodemon", "vercel", "netlify-cli"]
