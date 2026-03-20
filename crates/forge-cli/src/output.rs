@@ -132,15 +132,10 @@ impl Printer {
         self.bold(&format!("  {title} ({count}):"));
     }
 
-    /// Render a notes block with a title and underline.
+    /// Render a notes page with rich terminal formatting.
     pub fn notes_block(&self, title: &str, content: &str) {
-        self.newline();
-        self.heading(&format!("Notes: {title}"));
-        let underline_len = 7 + title.len(); // "Notes: " = 7 chars
-        println!("{}", self.dim_style.apply_to("─".repeat(underline_len)));
-        self.newline();
-        self.print(content);
-        self.newline();
+        let rendered = crate::render::render_notes_page(title, content, self.interactive);
+        print!("{rendered}");
     }
 
     /// Hint line — actionable suggestion.

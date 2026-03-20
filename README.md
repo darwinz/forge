@@ -33,7 +33,7 @@ forge is in active development. The read-only foundation is solid and usable tod
 | Platform notes (vercel, supabase, netlify, render, appwrite) | Done |
 | Platform diagnostics (`forge platform doctor/status`) | Done |
 | `forge vercel` command group (doctor, env-diff, status, deploy) | Done |
-| Terminal UX polish (TTY, dialoguer, notes rendering, clap styles) | Done |
+| Terminal UX (TTY, dialoguer, styled rendering, clap styles) | Done |
 | Skill execution design (trust, permissions, sandboxing model) | Done (design) |
 | Skill execution v1 — templates + transforms (run, trust, revoke, audit) | Done |
 | Skill execution v3 — script/binary execution (requires sandboxing) | Planned |
@@ -398,7 +398,7 @@ shell/
 
 ```bash
 cargo build                    # Build
-cargo test                     # Run all tests (293 tests)
+cargo test                     # Run all tests (311 tests)
 cargo run --bin forge -- --help  # Run locally
 ```
 

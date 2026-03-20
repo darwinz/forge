@@ -1,5 +1,6 @@
 mod args;
 mod output;
+mod render;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -143,16 +144,58 @@ fn cmd_notes(printer: &Printer, command: Option<NotesCommands>) -> Result<()> {
 }
 
 fn print_notes_list(printer: &Printer) {
-    printer.newline();
-    printer.heading("Available notes topics:");
-    printer.newline();
     let topics: Vec<(&str, &str)> = notes::list_topics();
-    printer.table(
-        &topics.iter().map(|(k, v)| (*k, *v)).collect::<Vec<_>>(),
-        16,
-    );
+
     printer.newline();
-    printer.dim("Usage: forge notes <topic>");
+    printer.heading(&format!("Available notes topics ({}):", topics.len()));
+    printer.newline();
+
+    // Group topics by category for better discovery
+    let platform_topics = ["vercel", "supabase", "netlify", "render", "appwrite"];
+    let ai_topics = ["claude", "codex"];
+    let infra_topics = ["k8s", "helm", "terraform", "gcloud", "packer", "blackbox"];
+    let tool_topics = [
+        "lsd", "rip", "zoxide", "dust", "fd", "sd", "procs", "bottom", "topgrade", "broot",
+        "tokei", "eva", "op",
+    ];
+
+    let categories: &[(&str, &[&str])] = &[
+        ("Platforms", &platform_topics),
+        ("AI Agents", &ai_topics),
+        ("Infrastructure", &infra_topics),
+        ("Modern CLI Tools", &tool_topics),
+    ];
+
+    for (cat_name, cat_topics) in categories {
+        let matching: Vec<(&str, &str)> = topics
+            .iter()
+            .filter(|(k, _)| cat_topics.contains(k))
+            .copied()
+            .collect();
+        if !matching.is_empty() {
+            printer.bold(&format!("  {cat_name}:"));
+            printer.table(&matching, 16);
+            printer.newline();
+        }
+    }
+
+    // Show remaining topics not in any category
+    let categorized: Vec<&str> = categories
+        .iter()
+        .flat_map(|(_, topics)| topics.iter().copied())
+        .collect();
+    let other: Vec<(&str, &str)> = topics
+        .iter()
+        .filter(|(k, _)| !categorized.contains(k))
+        .copied()
+        .collect();
+    if !other.is_empty() {
+        printer.bold("  Other:");
+        printer.table(&other, 16);
+        printer.newline();
+    }
+
+    printer.dim("  Usage: forge notes <topic>");
     printer.newline();
 }
 
