@@ -1489,6 +1489,16 @@ fn test_supabase_services_dry_run() {
 
 #[test]
 fn test_vercel_status() {
+    // `vercel status` shells out to the real vercel CLI, so skip when it is
+    // not installed (e.g. CI runners).
+    if std::process::Command::new("vercel")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
+        eprintln!("skipping test_vercel_status: vercel not found");
+        return;
+    }
     forge()
         .args(["vercel", "status"])
         .assert()
