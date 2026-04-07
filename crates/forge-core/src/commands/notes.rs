@@ -573,6 +573,14 @@ Editing:
   gcO / gco     Comment line above / below
   <C-s>         Expand snippet or jump to next placeholder (insert mode)
   jk / ii       Escape to normal mode
+  Neosnippet omnifunc auto-set for: Go, JS, TS, Lua, Python
+
+Terminal (Luxterm):
+  ,tn           New terminal session
+  ,tl           List terminal sessions
+  ,tk           Kill terminal session
+  ,tj           Next terminal session
+  ,th           Previous terminal session
 
 Git:
   ,gs           Fugitive git status
@@ -608,12 +616,15 @@ LSP:
   ,ca           Code action
   [d / ]d       Prev / next diagnostic
   ,f            Floating diagnostic
+  ,ds           Open diagnostic loclist (all buffer diagnostics)
 
 AI:
   Copilot: suggestions via nvim-cmp (ghost text off)
     :Copilot status / enable / disable
-  Avante: AI chat (Claude sonnet)
+  Avante: AI chat — providers: Claude (claude-sonnet-4-20250514), Moonshot (kimi-k2-0711-preview)
     :AvanteAsk / :AvanteChat / :AvanteToggle
+    Uses avante.md in project root for project-specific instructions
+  img-clip: paste images into codecompanion and Avante buffers
   cc            Open CodeCompanion chat
 
 UI:
@@ -635,7 +646,7 @@ Plugin management (lazy.nvim):
 
 Plugins: nvim-tree, telescope, flash, bufferline, Comment, neosnippet,
   conform, gitsigns, fugitive, go.nvim, copilot, avante, noice, notify,
-  markview, wakatime, navigator, lazy.nvim, treesitter";
+  markview, img-clip, wakatime, navigator, lazy.nvim, treesitter";
 
 static NOTES_VERCEL: &str = "\
 https://vercel.com/docs/cli
