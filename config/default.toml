@@ -23,3 +23,11 @@ user_dir = "~/.forge/skills"
 repo_dir = ".forge/skills"
 # Audit log location
 audit_log = "~/.forge/audit/skills.jsonl"
+
+[notes]
+# Notes discovery paths (in priority order, later wins)
+# Built-in notes ship with the binary
+# User-global: ~/.forge/notes/*.md
+# Repo-scoped: .forge/notes/*.md
+user_dir = "~/.forge/notes"
+repo_dir = ".forge/notes"

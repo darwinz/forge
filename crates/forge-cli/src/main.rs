@@ -14,12 +14,14 @@ use forge_core::{
         EnvironmentScan,
     },
     commands::{
-        aws, docker, file_ops, git, misc, netlify, notes, platform, shell_aliases, supabase,
-        system, vercel,
+        aws, docker, file_ops, git, misc, netlify, platform, shell_aliases, supabase, system,
+        vercel,
     },
     config,
     exec::{CommandRunner, DryRunRunner, RealRunner},
-    logging, os,
+    logging,
+    notes::discovery::{self as notes_discovery, resolve_notes_dir},
+    os,
     skills::{
         audit,
         discovery::{self, resolve_skills_dir},
@@ -50,7 +52,7 @@ fn main() -> Result<()> {
     let platform = os::current_platform();
 
     match cli.command {
-        Commands::Notes { command } => cmd_notes(&printer, command)?,
+        Commands::Notes { command } => cmd_notes(&printer, command, &config)?,
         Commands::System { command } => cmd_system(&printer, &*runner, &*platform, command)?,
         Commands::Bootstrap {
             list_bundles,
@@ -143,78 +145,80 @@ fn main() -> Result<()> {
 
 // --- Notes ---
 
-fn cmd_notes(printer: &Printer, command: Option<NotesCommands>) -> Result<()> {
+fn cmd_notes(
+    printer: &Printer,
+    command: Option<NotesCommands>,
+    config: &forge_core::config::schema::ForgeConfig,
+) -> Result<()> {
+    let user_dir = resolve_notes_dir(&config.notes.user_dir);
+    let repo_dir_path = resolve_notes_dir(&config.notes.repo_dir);
+    let repo_dir = if repo_dir_path.exists() {
+        Some(repo_dir_path.as_path())
+    } else {
+        None
+    };
+
     match command {
-        // `forge notes` with no args, `forge notes list`
         None | Some(NotesCommands::List) => {
-            print_notes_list(printer);
+            let all_notes = notes_discovery::discover_notes(&user_dir, repo_dir)?;
+            print_notes_list(printer, &all_notes);
         }
-        // `forge notes <topic>`
         Some(NotesCommands::Topic(args)) => {
             if let Some(topic) = args.first() {
-                let content = notes::get_notes(topic)?;
-                printer.notes_block(topic, content);
+                let note = notes_discovery::get_note(topic, &user_dir, repo_dir)?;
+                printer.notes_block(topic, &note.content);
             } else {
-                print_notes_list(printer);
+                let all_notes = notes_discovery::discover_notes(&user_dir, repo_dir)?;
+                print_notes_list(printer, &all_notes);
             }
         }
     }
     Ok(())
 }
 
-fn print_notes_list(printer: &Printer) {
-    let topics: Vec<(&str, &str)> = notes::list_topics();
-
+fn print_notes_list(
+    printer: &Printer,
+    all_notes: &[forge_core::notes::metadata::DiscoveredNote],
+) {
     printer.newline();
-    printer.heading(&format!("Available notes topics ({}):", topics.len()));
+    printer.heading(&format!("Available notes topics ({}):", all_notes.len()));
     printer.newline();
 
-    // Group topics by category for better discovery
-    let platform_topics = ["vercel", "supabase", "netlify", "render", "appwrite"];
-    let ai_topics = ["claude", "codex"];
-    let infra_topics = ["k8s", "helm", "terraform", "gcloud", "packer", "blackbox"];
-    let tool_topics = [
-        "lsd", "rip", "zoxide", "dust", "fd", "sd", "procs", "bottom", "topgrade", "broot",
-        "tokei", "eva", "op",
+    // Group by category dynamically
+    let mut categories: std::collections::BTreeMap<String, Vec<(&str, &str)>> =
+        std::collections::BTreeMap::new();
+    for note in all_notes {
+        categories
+            .entry(note.category.clone())
+            .or_default()
+            .push((&note.topic, &note.description));
+    }
+
+    // Display known categories first in a preferred order, then the rest
+    let preferred_order = [
+        "Platforms",
+        "AI Agents",
+        "Infrastructure",
+        "Modern CLI Tools",
     ];
 
-    let categories: &[(&str, &[&str])] = &[
-        ("Platforms", &platform_topics),
-        ("AI Agents", &ai_topics),
-        ("Infrastructure", &infra_topics),
-        ("Modern CLI Tools", &tool_topics),
-    ];
-
-    for (cat_name, cat_topics) in categories {
-        let matching: Vec<(&str, &str)> = topics
-            .iter()
-            .filter(|(k, _)| cat_topics.contains(k))
-            .copied()
-            .collect();
-        if !matching.is_empty() {
+    for cat_name in &preferred_order {
+        if let Some(topics) = categories.remove(*cat_name) {
             printer.bold(&format!("  {cat_name}:"));
-            printer.table(&matching, 16);
+            printer.table(&topics, 16);
             printer.newline();
         }
     }
 
-    // Show remaining topics not in any category
-    let categorized: Vec<&str> = categories
-        .iter()
-        .flat_map(|(_, topics)| topics.iter().copied())
-        .collect();
-    let other: Vec<(&str, &str)> = topics
-        .iter()
-        .filter(|(k, _)| !categorized.contains(k))
-        .copied()
-        .collect();
-    if !other.is_empty() {
-        printer.bold("  Other:");
-        printer.table(&other, 16);
+    // Remaining categories alphabetically
+    for (cat_name, topics) in &categories {
+        printer.bold(&format!("  {cat_name}:"));
+        printer.table(topics, 16);
         printer.newline();
     }
 
     printer.dim("  Usage: forge notes <topic>");
+    printer.dim("  Add .md files to ~/.forge/notes/ or .forge/notes/ to create your own.");
     printer.newline();
 }
 

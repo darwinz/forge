@@ -16,7 +16,7 @@ fn styles() -> styling::Styles {
     long_about = None,
     styles = styles(),
     after_help = "Run `forge <command> --help` for details on a specific command.\n\
-                  Run `forge notes` to browse built-in cheatsheets (33 topics).",
+                  Run `forge notes` to browse cheatsheets and quick references.",
 )]
 pub struct Cli {
     /// Enable dry-run mode (no mutations, preview only)

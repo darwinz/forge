@@ -16,14 +16,25 @@ Requires Rust 1.84+.
 
 ### `forge notes [topic]`
 
-Built-in cheatsheets for tools you use but don't memorize. 33 topics covering Kubernetes, Terraform, Helm, Docker, Git, Neovim, Claude Code, Codex, Vercel, Supabase, Netlify, and more.
+File-based cheatsheets loaded from markdown files. Add your own notes as `.md` files to `~/.forge/notes/` (user-global) or `.forge/notes/` (repo-scoped). Repo-scoped notes override user-global ones by topic name.
+
+Each file supports optional YAML frontmatter for description and category:
+
+```markdown
+---
+description: kubectl common commands
+category: Infrastructure
+---
+  kubectl get pods -n {namespace}
+  kubectl exec -it {pod} -- bash
+```
 
 ```bash
 forge notes              # list all topics
-forge notes k8s          # kubernetes cheatsheet
-forge notes nvim         # neovim config keybinds
-forge notes claude       # claude code CLI reference
+forge notes k8s          # show a specific topic
 ```
+
+Notes directories are configurable in `config/default.toml` under `[notes]`.
 
 ### `forge system <command>`
 

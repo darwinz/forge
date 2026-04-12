@@ -10,6 +10,8 @@ pub struct ForgeConfig {
     pub bootstrap: BootstrapConfig,
     #[serde(default)]
     pub skills: SkillsConfig,
+    #[serde(default)]
+    pub notes: NotesConfig,
 }
 
 impl ForgeConfig {
@@ -22,6 +24,12 @@ impl ForgeConfig {
         }
         if !other.skills.user_dir.is_empty() {
             self.skills.user_dir = other.skills.user_dir;
+        }
+        if !other.notes.user_dir.is_empty() {
+            self.notes.user_dir = other.notes.user_dir;
+        }
+        if !other.notes.repo_dir.is_empty() {
+            self.notes.repo_dir = other.notes.repo_dir;
         }
     }
 }
@@ -117,4 +125,29 @@ fn default_skills_repo_dir() -> String {
 
 fn default_audit_log() -> String {
     "~/.forge/audit/skills.jsonl".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotesConfig {
+    #[serde(default = "default_notes_user_dir")]
+    pub user_dir: String,
+    #[serde(default = "default_notes_repo_dir")]
+    pub repo_dir: String,
+}
+
+impl Default for NotesConfig {
+    fn default() -> Self {
+        Self {
+            user_dir: default_notes_user_dir(),
+            repo_dir: default_notes_repo_dir(),
+        }
+    }
+}
+
+fn default_notes_user_dir() -> String {
+    "~/.forge/notes".to_string()
+}
+
+fn default_notes_repo_dir() -> String {
+    ".forge/notes".to_string()
 }
