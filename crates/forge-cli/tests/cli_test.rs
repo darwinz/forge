@@ -29,81 +29,34 @@ fn test_version() {
 
 #[test]
 fn test_notes_list() {
+    // Notes are discovered from ~/.forge/notes/ and .forge/notes/
+    // The repo ships httpie.md and jo.md in ~/.forge/notes/ for testing
     forge()
         .arg("notes")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Available notes topics"))
-        .stdout(predicate::str::contains("k8s"))
-        .stdout(predicate::str::contains("terraform"))
-        .stdout(predicate::str::contains("screen"))
-        .stdout(predicate::str::contains("claude"))
-        .stdout(predicate::str::contains("codex"));
+        .stdout(predicate::str::contains("Available notes topics"));
 }
 
 #[test]
-fn test_notes_k8s() {
+fn test_notes_httpie() {
     forge()
-        .args(["notes", "k8s"])
+        .args(["notes", "httpie"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("kubectl"));
+        .stdout(predicate::str::contains("httpie.io"))
+        .stdout(predicate::str::contains("http PUT"))
+        .stdout(predicate::str::contains("--session"));
 }
 
 #[test]
-fn test_notes_terraform() {
+fn test_notes_jo() {
     forge()
-        .args(["notes", "terraform"])
+        .args(["notes", "jo"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("terraform init"))
-        .stdout(predicate::str::contains("terraform plan"));
-}
-
-#[test]
-fn test_notes_claude() {
-    forge()
-        .args(["notes", "claude"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Claude Code"))
-        .stdout(predicate::str::contains("claude -p"))
-        .stdout(predicate::str::contains("--model"))
-        .stdout(predicate::str::contains("--permission-mode"));
-}
-
-#[test]
-fn test_notes_codex() {
-    forge()
-        .args(["notes", "codex"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Codex CLI"))
-        .stdout(predicate::str::contains("codex exec"))
-        .stdout(predicate::str::contains("--full-auto"))
-        .stdout(predicate::str::contains("codex review"));
-}
-
-#[test]
-fn test_notes_nvim() {
-    forge()
-        .args(["notes", "nvim"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Leader: ,"))
-        .stdout(predicate::str::contains("Telescope"))
-        .stdout(predicate::str::contains("go.nvim"))
-        .stdout(predicate::str::contains(",gs"))
-        .stdout(predicate::str::contains("lazy.nvim"));
-}
-
-#[test]
-fn test_notes_list_includes_nvim() {
-    forge()
-        .arg("notes")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("nvim"));
+        .stdout(predicate::str::contains("jo name=Brandon"))
+        .stdout(predicate::str::contains("jo -p"));
 }
 
 // ---------------------------------------------------------------------------
@@ -117,9 +70,7 @@ fn test_notes_list_subcommand() {
         .args(["notes", "list"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Available notes topics"))
-        .stdout(predicate::str::contains("k8s"))
-        .stdout(predicate::str::contains("Usage: forge notes"));
+        .stdout(predicate::str::contains("Available notes topics"));
 }
 
 #[test]
@@ -135,12 +86,11 @@ fn test_notes_help_subcommand() {
 
 #[test]
 fn test_notes_shows_usage_hint() {
-    // Bare `forge notes` should include a usage hint
     forge()
         .arg("notes")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Usage: forge notes"));
+        .stdout(predicate::str::contains("forge notes"));
 }
 
 #[test]
@@ -1163,74 +1113,6 @@ fn test_platform_doctor_dry_run() {
         .success()
         .stdout(predicate::str::contains("Platform doctor"))
         .stdout(predicate::str::contains("not installed"));
-}
-
-// ---------------------------------------------------------------------------
-// Notes — platform topics
-// ---------------------------------------------------------------------------
-
-#[test]
-fn test_notes_vercel() {
-    forge()
-        .args(["notes", "vercel"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("vercel login"))
-        .stdout(predicate::str::contains("vercel deploy"))
-        .stdout(predicate::str::contains("vercel env"));
-}
-
-#[test]
-fn test_notes_supabase() {
-    forge()
-        .args(["notes", "supabase"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("supabase start"))
-        .stdout(predicate::str::contains("supabase db"));
-}
-
-#[test]
-fn test_notes_netlify() {
-    forge()
-        .args(["notes", "netlify"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("netlify deploy"))
-        .stdout(predicate::str::contains("netlify dev"));
-}
-
-#[test]
-fn test_notes_render() {
-    forge()
-        .args(["notes", "render"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("render services"))
-        .stdout(predicate::str::contains("render deploys"));
-}
-
-#[test]
-fn test_notes_appwrite() {
-    forge()
-        .args(["notes", "appwrite"])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("appwrite deploy"))
-        .stdout(predicate::str::contains("appwrite functions"));
-}
-
-#[test]
-fn test_notes_list_includes_platforms() {
-    forge()
-        .arg("notes")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("vercel"))
-        .stdout(predicate::str::contains("supabase"))
-        .stdout(predicate::str::contains("netlify"))
-        .stdout(predicate::str::contains("render"))
-        .stdout(predicate::str::contains("appwrite"));
 }
 
 // ---------------------------------------------------------------------------

@@ -26,13 +26,92 @@ pub fn render(content: &str, styled: bool) -> String {
         return content.to_string();
     }
 
+    let lines: Vec<&str> = content.lines().collect();
     let mut output = Vec::new();
+    let mut i = 0;
 
-    for line in content.lines() {
-        output.push(render_line(line));
+    while i < lines.len() {
+        // Detect markdown table blocks (lines containing |)
+        if is_table_row(lines[i]) {
+            let table_start = i;
+            while i < lines.len() && is_table_row(lines[i]) {
+                i += 1;
+            }
+            render_table(&lines[table_start..i], &mut output);
+        } else {
+            output.push(render_line(lines[i]));
+            i += 1;
+        }
     }
 
     output.join("\n")
+}
+
+/// Check if a line is part of a markdown table (contains pipes)
+fn is_table_row(line: &str) -> bool {
+    let trimmed = line.trim();
+    trimmed.starts_with('|') && trimmed.ends_with('|') && trimmed.len() > 1
+}
+
+/// Check if a line is a table separator (e.g. |---|---|)
+fn is_table_separator(line: &str) -> bool {
+    let trimmed = line.trim();
+    trimmed
+        .chars()
+        .all(|c| c == '|' || c == '-' || c == ':' || c == ' ')
+}
+
+/// Render a markdown table block with colored columns
+fn render_table(rows: &[&str], output: &mut Vec<String>) {
+    // Parse cells and track which rows are separators
+    let mut parsed: Vec<(bool, Vec<String>)> = Vec::new();
+    for row in rows {
+        let is_sep = is_table_separator(row);
+        let cells: Vec<String> = row
+            .trim()
+            .trim_matches('|')
+            .split('|')
+            .map(|cell| cell.trim().to_string())
+            .collect();
+        parsed.push((is_sep, cells));
+    }
+
+    // Calculate column widths (ignoring separators)
+    let col_count = parsed.iter().map(|(_, r)| r.len()).max().unwrap_or(0);
+    let mut widths = vec![0usize; col_count];
+    for (is_sep, cells) in &parsed {
+        if *is_sep {
+            continue;
+        }
+        for (j, cell) in cells.iter().enumerate() {
+            if j < col_count {
+                widths[j] = widths[j].max(cell.len());
+            }
+        }
+    }
+
+    let key_style = Style::new().yellow();
+    let val_style = Style::new().dim();
+
+    for (is_sep, cells) in &parsed {
+        if *is_sep {
+            continue;
+        }
+
+        let mut line = String::from("  ");
+        for (j, cell) in cells.iter().enumerate() {
+            let width = widths.get(j).copied().unwrap_or(cell.len());
+            if j == 0 {
+                line.push_str(&format!("{}", key_style.apply_to(format!("{:<width$}", cell))));
+            } else {
+                line.push_str(&format!(
+                    "  {}",
+                    val_style.apply_to(format!("{:<width$}", cell))
+                ));
+            }
+        }
+        output.push(line);
+    }
 }
 
 fn render_line(line: &str) -> String {
