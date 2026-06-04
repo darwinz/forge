@@ -231,6 +231,15 @@ cargo test
 cargo run --bin forge -- --help
 ```
 
+## AI agent skill
+
+forge ships an AI agent skill that teaches coding agents — Claude, Codex, and Gemini — to drive the CLI to set up a dev environment safely (recon → plan → confirm → apply → verify, with a human gate before any mutation).
+
+- **Claude** auto-discovers `.claude/skills/forge-environment-setup/SKILL.md`.
+- **Codex** and **Gemini** read `AGENTS.md` / `GEMINI.md` at the repo root.
+
+See [docs/agent-skill.md](docs/agent-skill.md) for the full guide, including how it triggers, the safety model, and how to update it. (This is separate from `forge skill`, forge's internal template/transform subsystem.)
+
 ## License
 
 MIT
